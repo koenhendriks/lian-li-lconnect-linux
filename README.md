@@ -1,7 +1,8 @@
 # L-Connect for Linux (unofficial)
 
 [![CI](https://github.com/koenhendriks/lian-li-lconnect-linux/actions/workflows/ci.yml/badge.svg)](https://github.com/koenhendriks/lian-li-lconnect-linux/actions/workflows/ci.yml)
-[![AUR](https://img.shields.io/aur/version/lconnect-linux)](https://aur.archlinux.org/packages/lconnect-linux)
+[![AUR](https://img.shields.io/aur/version/lconnect-linux?label=AUR%20lconnect-linux)](https://aur.archlinux.org/packages/lconnect-linux)
+[![AUR bin](https://img.shields.io/aur/version/lconnect-linux-bin?label=AUR%20lconnect-linux-bin)](https://aur.archlinux.org/packages/lconnect-linux-bin)
 [![Release](https://img.shields.io/github/v/release/koenhendriks/lian-li-lconnect-linux)](https://github.com/koenhendriks/lian-li-lconnect-linux/releases)
 
 An unofficial Linux port of **Lian Li L-Connect 3 v2.0.11**. It drives UNI FAN **TL** fans (including the
@@ -26,8 +27,14 @@ It is a background service (`lconnectd`), a desktop GUI with a tray icon (`lconn
 
 ## Install
 
-**Arch Linux:** install [`lconnect-linux`](https://aur.archlinux.org/packages/lconnect-linux) from the AUR with any
-AUR helper (`yay -S lconnect-linux`), or build the latest commit from a clone:
+**Arch Linux:** install one of the AUR packages with any AUR helper:
+
+- [`lconnect-linux-bin`](https://aur.archlinux.org/packages/lconnect-linux-bin): the release's prebuilt binaries, no
+  build step (`yay -S lconnect-linux-bin`)
+- [`lconnect-linux`](https://aur.archlinux.org/packages/lconnect-linux): builds the release from source with the .NET
+  SDK and runs the tests (`yay -S lconnect-linux`)
+
+Both install the same files and replace each other. To build the latest commit from a clone instead:
 
 ```sh
 git clone https://github.com/koenhendriks/lian-li-lconnect-linux.git
@@ -35,8 +42,8 @@ cd lian-li-lconnect-linux/packaging/arch && makepkg -si
 ```
 
 **Other distributions:** each [release](https://github.com/koenhendriks/lian-li-lconnect-linux/releases) has a
-`linux-x64` tarball with the binaries (needs the .NET 10 and ASP.NET Core 10 runtimes, hidapi and ffmpeg) and the
-systemd unit, udev rules, sysusers/tmpfiles and desktop files in `system/` to install by hand.
+`linux-x64` tarball with the binaries in `lib/` (needs the .NET 10 and ASP.NET Core 10 runtimes, hidapi and ffmpeg) and
+the systemd unit, udev rules, sysusers/tmpfiles and desktop files in `system/` to install by hand.
 
 Then:
 
@@ -171,7 +178,7 @@ tools/systemd-integration-test.sh "<L-Connect 3 install dir>"  # same, as a hard
   install) and run it with `tests/fixtures/appdata tests/Golden/golden.txt`.
 - Releasing: tag `v<L-Connect version>.<port release>` (e.g. `git tag v2.0.11.2`) and push the tag to GitHub.
   The release workflow runs CI, builds the binaries, source tarball and Arch package, publishes a GitHub release
-  whose notes list the commits since the previous tag, and pushes the generated PKGBUILD (`tools/aur-pkgbuild.sh`)
-  to the AUR with the `AUR_SSH_PRIVATE_KEY` secret.
+  whose notes list the commits since the previous tag, and pushes the generated PKGBUILDs (`tools/aur-pkgbuild.sh`,
+  `--bin` for `lconnect-linux-bin`) to the AUR with the `AUR_SSH_PRIVATE_KEY` secret.
 - New L-Connect version: decompile the old and new versions with `ilspycmd -p --nested-directories` into the
   git-ignored `vendor/` folder and diff them to see protocol changes. Decompiler output is never committed.

@@ -21,8 +21,8 @@ cat <<EOF
 
 ## Install
 
-- **Arch Linux (AUR):** \`yay -S lconnect-linux\` (or any AUR helper), or build \`packaging/arch\` from a clone.
-- **Other distributions:** \`lconnect-linux-${tag#v}-linux-x64.tar.gz\` holds the binaries (needs the .NET 10 and
+- **Arch Linux (AUR):** \`yay -S lconnect-linux-bin\` (prebuilt) or \`yay -S lconnect-linux\` (builds from source).
+- **Other distributions:** \`lconnect-linux-${tag#v}-linux-x64.tar.gz\` has the binaries in \`lib/\` (needs the .NET 10 and
   ASP.NET Core 10 runtimes, hidapi and ffmpeg) and the systemd unit, udev rules and desktop files in \`system/\`.
 
 See the [README]($repo#readme) for setup (group membership, importing the LCD assets from L-Connect 3).

@@ -1,8 +1,9 @@
 name: Release
 
 # Push a tag v<L-Connect version>.<port release>, e.g. v2.0.11.1. Runs CI, builds the binaries, the source tarball and
-# the Arch package, publishes a GitHub release with the commits since the previous tag as changelog, then updates the
-# AUR package (needs the AUR_SSH_PRIVATE_KEY secret; skipped with a warning without it).
+# the Arch packages, publishes a GitHub release with the commits since the previous tag as changelog, then updates the
+# AUR packages lconnect-linux (builds from source) and lconnect-linux-bin (repackages the binary tarball). Needs the
+# AUR_SSH_PRIVATE_KEY secret; skipped with a warning without it.
 on:
   push:
     tags: ['v*']
@@ -52,10 +53,11 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
+          # lib/ holds the binaries, system/ the files packaging/arch installs; lconnect-linux-bin repackages this.
           name="lconnect-linux-$VERSION-linux-x64"
           for project in LConnect.Daemon LConnect.Cli LConnect.Ui; do
             dotnet publish "src/$project" -c Release -r linux-x64 --self-contained false \
-              -p:DebugType=None -p:GenerateDocumentationFile=false -o "build/$name"
+              -p:DebugType=None -p:GenerateDocumentationFile=false -o "build/$name/lib"
           done
           mkdir -p "build/$name/system"
           cp packaging/arch/{lconnectd.service,60-lconnect.rules,lconnect.sysusers,lconnect.tmpfiles,lconnect.sleep,lconnect-ui.desktop,lconnect-ui-autostart.desktop} "build/$name/system/"
@@ -68,7 +70,7 @@ jobs:
           path: dist/
 
   arch:
-    name: Arch and AUR package
+    name: Arch and AUR packages
     needs: build
     runs-on: ubuntu-26.04
     container: archlinux:base-devel
@@ -82,35 +84,45 @@ jobs:
           name: dist
           path: dist
 
-      # The release does not exist yet, so the tarball sits next to the PKGBUILD and makepkg uses it instead of
-      # downloading; the checksum is the one AUR users will verify against the release asset.
-      - name: Generate AUR package
+      # The release does not exist yet, so each tarball sits next to its PKGBUILD and makepkg uses it instead of
+      # downloading; the checksums are the ones AUR users will verify against the release assets.
+      - name: Generate AUR packages
         run: |
-          sha256=$(sha256sum "dist/lconnect-linux-$VERSION.tar.gz" | cut -d' ' -f1)
-          tools/aur-pkgbuild.sh "$VERSION" "$sha256" aur
-          cp "dist/lconnect-linux-$VERSION.tar.gz" aur/
+          src="dist/lconnect-linux-$VERSION.tar.gz" bin="dist/lconnect-linux-$VERSION-linux-x64.tar.gz"
+          tools/aur-pkgbuild.sh "$VERSION" "$(sha256sum "$src" | cut -d' ' -f1)" aur/lconnect-linux
+          tools/aur-pkgbuild.sh --bin "$VERSION" "$(sha256sum "$bin" | cut -d' ' -f1)" aur/lconnect-linux-bin
+          cp "$src" aur/lconnect-linux/
+          cp "$bin" aur/lconnect-linux-bin/
 
-      - name: Build package
+      - name: Build packages
         run: |
           pacman -Syu --noconfirm
           useradd -m builder
           echo 'builder ALL=(ALL) NOPASSWD: ALL' >/etc/sudoers.d/builder
           chown -R builder: aur
-          su builder -c "cd '$PWD/aur' && makepkg --syncdeps --noconfirm && makepkg --printsrcinfo >.SRCINFO"
+          for pkg in lconnect-linux lconnect-linux-bin; do
+            su builder -c "cd '$PWD/aur/$pkg' && makepkg --syncdeps --noconfirm && makepkg --printsrcinfo >.SRCINFO"
+          done
+
+      # Both packages share package(); they must install exactly the same files.
+      - name: Compare package contents
+        run: |
+          list() { bsdtar -tf "$1" | grep -v '^\.' | sort; }
+          diff <(list aur/lconnect-linux/*.pkg.tar.zst) <(list aur/lconnect-linux-bin/*.pkg.tar.zst)
 
       - uses: actions/upload-artifact@v7
         with:
           name: aur
           path: |
-            aur/PKGBUILD
-            aur/.SRCINFO
-            aur/lconnect.install
+            aur/*/PKGBUILD
+            aur/*/.SRCINFO
+            aur/*/lconnect.install
           include-hidden-files: true
 
       - uses: actions/upload-artifact@v7
         with:
           name: release-package
-          path: aur/*.pkg.tar.zst
+          path: aur/lconnect-linux/*.pkg.tar.zst
 
   release:
     name: GitHub release
@@ -176,15 +188,16 @@ jobs:
           chmod 600 ~/.ssh/aur
           echo 'aur.archlinux.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEuBKrPzbawxA/k2g6NcyV5jmqwJ2s+zpgZGZ7tpLIcN' >~/.ssh/known_hosts
           export GIT_SSH_COMMAND="ssh -i ~/.ssh/aur -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes"
-          git clone ssh://aur@aur.archlinux.org/lconnect-linux.git aur-repo
-          cp aur/PKGBUILD aur/.SRCINFO aur/lconnect.install aur-repo/
-          cd aur-repo
-          git config user.name "Koen Hendriks"
-          git config user.email "info@koenhendriks.nl"
-          git add PKGBUILD .SRCINFO lconnect.install
-          if git diff --cached --quiet; then
-            echo "AUR package already at $VERSION"
-          else
-            git commit -m "Update to $VERSION"
-            git push origin HEAD:master
-          fi
+          for pkg in lconnect-linux lconnect-linux-bin; do
+            git clone "ssh://aur@aur.archlinux.org/$pkg.git" "repo-$pkg"
+            cp "aur/$pkg/PKGBUILD" "aur/$pkg/.SRCINFO" "aur/$pkg/lconnect.install" "repo-$pkg/"
+            git -C "repo-$pkg" config user.name "Koen Hendriks"
+            git -C "repo-$pkg" config user.email "info@koenhendriks.nl"
+            git -C "repo-$pkg" add PKGBUILD .SRCINFO lconnect.install
+            if git -C "repo-$pkg" diff --cached --quiet; then
+              echo "$pkg already at $VERSION"
+            else
+              git -C "repo-$pkg" commit -m "Update to $VERSION"
+              git -C "repo-$pkg" push origin HEAD:master
+            fi
+          done
