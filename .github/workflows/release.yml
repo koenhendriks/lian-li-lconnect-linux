@@ -92,6 +92,7 @@ jobs:
 
       - name: Build package
         run: |
+          pacman -Syu --noconfirm
           useradd -m builder
           echo 'builder ALL=(ALL) NOPASSWD: ALL' >/etc/sudoers.d/builder
           chown -R builder: aur
