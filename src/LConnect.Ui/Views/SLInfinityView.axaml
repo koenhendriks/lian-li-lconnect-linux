@@ -53,7 +53,7 @@
                 <TextBlock Classes="label" Text="Ring" />
                 <ComboBox Grid.Column="1" MinWidth="200" ItemsSource="{Binding Scopes}" SelectedItem="{Binding SelectedScope}" />
                 <TextBlock Grid.Row="1" Classes="label" Text="{svc:Tr I18n.Text.EffectMode, 'Effect'}" Margin="0,10,0,0" />
-                <ComboBox Grid.Row="1" Grid.Column="1" Margin="0,10,0,0" MinWidth="240" MaxDropDownHeight="420"
+                <ComboBox Grid.Row="1" Grid.Column="1" Margin="0,10,0,0" MinWidth="240" MaxDropDownHeight="720"
                           ItemsSource="{Binding Modes}" SelectedItem="{Binding SelectedMode}" />
                 <CheckBox Grid.Row="2" Grid.Column="1" Margin="0,10,0,0" IsChecked="{Binding IsMerged}" IsVisible="{Binding IsMergeAvailable}"
                           Content="{svc:Tr I18n.Text.Merge, 'Merge across all groups'}" />
