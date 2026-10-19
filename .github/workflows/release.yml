@@ -1,0 +1,189 @@
+name: Release
+
+# Push a tag v<L-Connect version>.<port release>, e.g. v2.0.11.1. Runs CI, builds the binaries, the source tarball and
+# the Arch package, publishes a GitHub release with the commits since the previous tag as changelog, then updates the
+# AUR package (needs the AUR_SSH_PRIVATE_KEY secret; skipped with a warning without it).
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: 1
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    name: Binaries and source tarball
+    needs: ci
+    runs-on: ubuntu-26.04
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Version from tag
+        id: version
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          if [[ ! $version =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::Tag $GITHUB_REF_NAME is not v<L-Connect version>.<port release>, e.g. v2.0.11.1"
+            exit 1
+          fi
+          echo "version=$version" >>"$GITHUB_OUTPUT"
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Source tarball
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          mkdir -p dist
+          git archive --format=tar.gz --prefix="lconnect-linux-$VERSION/" -o "dist/lconnect-linux-$VERSION.tar.gz" "$GITHUB_SHA"
+
+      - name: Binaries
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          name="lconnect-linux-$VERSION-linux-x64"
+          for project in LConnect.Daemon LConnect.Cli LConnect.Ui; do
+            dotnet publish "src/$project" -c Release -r linux-x64 --self-contained false \
+              -p:DebugType=None -p:GenerateDocumentationFile=false -o "build/$name"
+          done
+          mkdir -p "build/$name/system"
+          cp packaging/arch/{lconnectd.service,60-lconnect.rules,lconnect.sysusers,lconnect.tmpfiles,lconnect.sleep,lconnect-ui.desktop,lconnect-ui-autostart.desktop} "build/$name/system/"
+          cp README.md "build/$name/"
+          tar -C build -czf "dist/$name.tar.gz" "$name"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist
+          path: dist/
+
+  arch:
+    name: Arch and AUR package
+    needs: build
+    runs-on: ubuntu-26.04
+    container: archlinux:base-devel
+    env:
+      VERSION: ${{ needs.build.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist
+
+      # The release does not exist yet, so the tarball sits next to the PKGBUILD and makepkg uses it instead of
+      # downloading; the checksum is the one AUR users will verify against the release asset.
+      - name: Generate AUR package
+        run: |
+          sha256=$(sha256sum "dist/lconnect-linux-$VERSION.tar.gz" | cut -d' ' -f1)
+          tools/aur-pkgbuild.sh "$VERSION" "$sha256" aur
+          cp "dist/lconnect-linux-$VERSION.tar.gz" aur/
+
+      - name: Build package
+        run: |
+          useradd -m builder
+          echo 'builder ALL=(ALL) NOPASSWD: ALL' >/etc/sudoers.d/builder
+          chown -R builder: aur
+          su builder -c "cd '$PWD/aur' && makepkg --syncdeps --noconfirm && makepkg --printsrcinfo >.SRCINFO"
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: aur
+          path: |
+            aur/PKGBUILD
+            aur/.SRCINFO
+            aur/lconnect.install
+          include-hidden-files: true
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-package
+          path: aur/*.pkg.tar.zst
+
+  release:
+    name: GitHub release
+    needs: [build, arch]
+    runs-on: ubuntu-26.04
+    permissions:
+      contents: write
+    env:
+      VERSION: ${{ needs.build.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The changelog is every commit since the previous v* tag.
+          fetch-depth: 0
+
+      - uses: actions/download-artifact@v8
+        with:
+          path: artifacts
+          pattern: '{dist,release-package}'
+          merge-multiple: true
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tools/release-notes.sh "$GITHUB_REF_NAME" >notes.md
+          (cd artifacts && sha256sum * >SHA256SUMS)
+          gh release create "$GITHUB_REF_NAME" artifacts/* --title "$GITHUB_REF_NAME" --notes-file notes.md --verify-tag
+
+  aur:
+    name: Publish to AUR
+    needs: [build, release]
+    runs-on: ubuntu-26.04
+    env:
+      VERSION: ${{ needs.build.outputs.version }}
+    steps:
+      - name: Check for the AUR key
+        id: key
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+        run: |
+          if [[ -z $AUR_SSH_PRIVATE_KEY ]]; then
+            echo "::warning::AUR_SSH_PRIVATE_KEY is not set; the AUR package was not updated."
+            echo "present=false" >>"$GITHUB_OUTPUT"
+          else
+            echo "present=true" >>"$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/download-artifact@v8
+        if: steps.key.outputs.present == 'true'
+        with:
+          name: aur
+          path: aur
+
+      # Host key pinned to the fingerprints published on aur.archlinux.org instead of trusting ssh-keyscan at run time.
+      - name: Push to AUR
+        if: steps.key.outputs.present == 'true'
+        env:
+          AUR_SSH_PRIVATE_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+        run: |
+          install -dm700 ~/.ssh
+          printf '%s\n' "$AUR_SSH_PRIVATE_KEY" >~/.ssh/aur
+          chmod 600 ~/.ssh/aur
+          echo 'aur.archlinux.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEuBKrPzbawxA/k2g6NcyV5jmqwJ2s+zpgZGZ7tpLIcN' >~/.ssh/known_hosts
+          export GIT_SSH_COMMAND="ssh -i ~/.ssh/aur -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes"
+          git clone ssh://aur@aur.archlinux.org/lconnect-linux.git aur-repo
+          cp aur/PKGBUILD aur/.SRCINFO aur/lconnect.install aur-repo/
+          cd aur-repo
+          git config user.name "Koen Hendriks"
+          git config user.email "info@koenhendriks.nl"
+          git add PKGBUILD .SRCINFO lconnect.install
+          if git diff --cached --quiet; then
+            echo "AUR package already at $VERSION"
+          else
+            git commit -m "Update to $VERSION"
+            git push origin HEAD:master
+          fi

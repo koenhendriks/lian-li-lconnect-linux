@@ -1,0 +1,76 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'push' || github.ref != 'refs/heads/main' }}
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
+  DOTNET_NOLOGO: 1
+
+jobs:
+  test:
+    name: Build and test
+    runs-on: ubuntu-26.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Install runtime dependencies
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg libhidapi-hidraw0
+
+      - name: Build
+        run: dotnet build LConnect.sln -c Release
+
+      - name: Core tests (golden protocol bytes, port)
+        run: dotnet test tests/LConnect.Core.Tests -c Release --no-build
+
+      - name: GUI tests (headless, hardware simulator)
+        run: dotnet test tests/LConnect.Ui.Tests -c Release --no-build
+
+      - name: Upload GUI screenshots
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: gui-screenshots
+          path: tests/LConnect.Ui.Tests/bin/Release/net10.0/screenshots/
+          if-no-files-found: ignore
+
+  arch-package:
+    name: Arch package (makepkg)
+    runs-on: ubuntu-26.04
+    container: archlinux:base-devel
+    steps:
+      - name: Install git
+        run: pacman -Syu --noconfirm --needed git
+
+      - uses: actions/checkout@v7
+        with:
+          # pkgver() is derived from the v* tags.
+          fetch-depth: 0
+
+      # makepkg refuses to run as root; the builder installs the PKGBUILD's own dependencies, which checks them.
+      - name: Build package
+        run: |
+          useradd -m builder
+          echo 'builder ALL=(ALL) NOPASSWD: ALL' >/etc/sudoers.d/builder
+          chown -R builder: "$GITHUB_WORKSPACE"
+          su builder -c "cd '$GITHUB_WORKSPACE/packaging/arch' && makepkg --syncdeps --noconfirm"
+
+      - name: Upload package
+        uses: actions/upload-artifact@v7
+        with:
+          name: arch-package
+          path: packaging/arch/*.pkg.tar.zst

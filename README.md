@@ -1,5 +1,9 @@
 # L-Connect for Linux (unofficial)
 
+[![CI](https://github.com/koenhendriks/lian-li-lconnect-linux/actions/workflows/ci.yml/badge.svg)](https://github.com/koenhendriks/lian-li-lconnect-linux/actions/workflows/ci.yml)
+[![AUR](https://img.shields.io/aur/version/lconnect-linux)](https://aur.archlinux.org/packages/lconnect-linux)
+[![Release](https://img.shields.io/github/v/release/koenhendriks/lian-li-lconnect-linux)](https://github.com/koenhendriks/lian-li-lconnect-linux/releases)
+
 An unofficial Linux port of **Lian Li L-Connect 3 v2.0.11**. It drives UNI FAN **TL** fans (including the
 **TL LCD** screens) and the **UNI HUB SL Infinity**: RGB effects, fan speed curves and the LCD screens (images, GIFs,
 videos, built-in animations and the CPU/GPU sensor gauges). The SL / AL / SL V2 / AL V2 hubs are ported too but have
@@ -20,13 +24,23 @@ It is a background service (`lconnectd`), a desktop GUI with a tray icon (`lconn
 > it from your own L-Connect 3 installation with `lconnectctl assets import`. "Lian Li", "L-Connect" and "UNI FAN"
 > are trademarks of Lian Li Industrial Co., Ltd.
 
-## Install (Arch Linux)
+## Install
+
+**Arch Linux:** install [`lconnect-linux`](https://aur.archlinux.org/packages/lconnect-linux) from the AUR with any
+AUR helper (`yay -S lconnect-linux`), or build the latest commit from a clone:
 
 ```sh
 git clone https://github.com/koenhendriks/lian-li-lconnect-linux.git
-cd lian-li-lconnect-linux/packaging/arch
-makepkg -si                      # builds with dotnet-sdk-10.0, runs the test suite, installs
+cd lian-li-lconnect-linux/packaging/arch && makepkg -si
+```
 
+**Other distributions:** each [release](https://github.com/koenhendriks/lian-li-lconnect-linux/releases) has a
+`linux-x64` tarball with the binaries (needs the .NET 10 and ASP.NET Core 10 runtimes, hidapi and ffmpeg) and the
+systemd unit, udev rules, sysusers/tmpfiles and desktop files in `system/` to install by hand.
+
+Then:
+
+```sh
 sudo usermod -aG lconnect "$USER"   # log out and back in afterwards
 
 # Lian Li's LCD assets and (optionally) your Windows settings, e.g. from a Windows partition
@@ -39,8 +53,8 @@ lconnect-ui
 
 Optional packages: `chromium` (LCD sensor gauges), `nvidia-utils` (NVIDIA GPU temperature and load).
 
-`makepkg` builds the last **commit** of the clone, not uncommitted changes. To update, `git pull` and run
-`makepkg -si` again; the package restarts `lconnectd` itself. Restart the GUI as well (quit it from the tray).
+Building from a clone uses its last **commit**, not uncommitted changes. Package upgrades restart `lconnectd`
+themselves; restart the GUI as well (quit it from the tray).
 
 `import` maps each Windows device to the connected Linux device with the same USB VID/PID/interface. Settings for
 devices that are not plugged in are kept in `/var/lib/lconnect/pending/` and applied the first time the device
@@ -155,5 +169,9 @@ tools/systemd-integration-test.sh "<L-Connect 3 install dir>"  # same, as a hard
   own `hidapi.dll`: `LCONNECT_HIDAPI="C:\Program Files\Lian-Li\L-Connect 3\hidapi.dll"`.
 - Regenerate the golden data after changing scenarios: build `tools/GoldenHarness` (Windows, needs an L-Connect 3
   install) and run it with `tests/fixtures/appdata tests/Golden/golden.txt`.
+- Releasing: tag `v<L-Connect version>.<port release>` (e.g. `git tag v2.0.11.2`) and push the tag to GitHub.
+  The release workflow runs CI, builds the binaries, source tarball and Arch package, publishes a GitHub release
+  whose notes list the commits since the previous tag, and pushes the generated PKGBUILD (`tools/aur-pkgbuild.sh`)
+  to the AUR with the `AUR_SSH_PRIVATE_KEY` secret.
 - New L-Connect version: decompile the old and new versions with `ilspycmd -p --nested-directories` into the
   git-ignored `vendor/` folder and diff them to see protocol changes. Decompiler output is never committed.

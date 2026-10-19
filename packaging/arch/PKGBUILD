@@ -1,14 +1,15 @@
-# Unofficial Linux port of Lian Li L-Connect 3, built from a local clone of the repository. Not in the AUR: the
-# sources are derived from Lian Li's software, so this is meant for building on your own machine.
+# Unofficial Linux port of Lian Li L-Connect 3, built from a local clone of this repository (its last commit).
 #
-# Build:
-#   cd packaging/arch && LCONNECT_SRC=/path/to/lconnect-linux makepkg -si
-# (LCONNECT_SRC defaults to the repository this PKGBUILD lives in.)
+#   cd packaging/arch && makepkg -si
+#   LCONNECT_SRC=/path/to/clone makepkg -si    # another clone
+#
+# The AUR package is generated from this file by tools/aur-pkgbuild.sh at release time: it swaps the source for the
+# release tarball, pins the version and checksum and drops pkgver(). Keep build steps in terms of $_src.
 
 pkgname=lconnect-linux
-pkgver=2.0.11
+pkgver=2.0.11.0
 pkgrel=1
-pkgdesc="Lian Li L-Connect 3 port: UNI FAN TL / TL LCD / SL Infinity fan speed, RGB and LCD control"
+pkgdesc="Unofficial Lian Li L-Connect 3 port: UNI FAN TL / TL LCD / SL Infinity fan speed, RGB and LCD control"
 arch=('x86_64')
 url="https://github.com/koenhendriks/lian-li-lconnect-linux"
 license=('LicenseRef-L-Connect-derived')
@@ -18,17 +19,24 @@ optdepends=('chromium: render LCD sensor screens (CPU/GPU temperature and load g
             'nvidia-utils: NVIDIA GPU temperature/load for fan curves and sensor screens')
 options=('!strip' '!debug')
 install=lconnect.install
-backup=()
-source=("lconnect-linux::git+file://${LCONNECT_SRC:-$(realpath "$startdir/../..")}")
+_src=lconnect-linux
+source=("$_src::git+file://${LCONNECT_SRC:-$(realpath "$startdir/../..")}")
 sha256sums=('SKIP')
 
+# Releases are tagged v<L-Connect version>.<port release> (v2.0.11.1); commits after a tag become
+# 2.0.11.1.r3.gabc1234, which sorts between releases. Without tags (e.g. a shallow clone): 2.0.11.0.rN.gHASH.
 pkgver() {
-	cd lconnect-linux
-	printf "2.0.11.r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short HEAD)"
+	cd "$_src"
+	local described
+	if described=$(git describe --long --tags --match 'v*' 2>/dev/null); then
+		echo "$described" | sed 's/^v//; s/-\([0-9]*\)-g/.r\1.g/'
+	else
+		printf "2.0.11.0.r%s.g%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+	fi
 }
 
 build() {
-	cd lconnect-linux
+	cd "$_src"
 	export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1 DOTNET_SKIP_FIRST_TIME_EXPERIENCE=1
 	local project
 	for project in LConnect.Daemon LConnect.Cli LConnect.Ui; do
@@ -38,14 +46,14 @@ build() {
 }
 
 check() {
-	cd lconnect-linux
+	cd "$_src"
 	export DOTNET_CLI_TELEMETRY_OPTOUT=1 DOTNET_NOLOGO=1
 	dotnet test tests/LConnect.Core.Tests -c Release
 }
 
 package() {
-	cd lconnect-linux
-	local pk="$srcdir/lconnect-linux/packaging/arch"
+	cd "$_src"
+	local pk="$srcdir/$_src/packaging/arch"
 
 	install -dm755 "$pkgdir/usr/lib/lconnect"
 	cp -a "$srcdir/publish/." "$pkgdir/usr/lib/lconnect/"
