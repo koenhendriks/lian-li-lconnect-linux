@@ -1,0 +1,60 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:LConnectUi.ViewModels"
+             xmlns:v="using:LConnectUi.Views"
+             xmlns:local="using:LConnectUi"
+             x:Class="LConnectUi.App"
+             Name="L-Connect"
+             RequestedThemeVariant="Dark">
+  <Application.DataTemplates>
+    <DataTemplate DataType="vm:OverviewViewModel"><v:OverviewView /></DataTemplate>
+    <DataTemplate DataType="vm:TLLightingViewModel"><v:TLLightingView /></DataTemplate>
+    <DataTemplate DataType="vm:TLFanSpeedViewModel"><v:TLFanSpeedView /></DataTemplate>
+    <DataTemplate DataType="vm:LcdViewModel"><v:LcdView /></DataTemplate>
+    <DataTemplate DataType="vm:SLInfinityViewModel"><v:SLInfinityView /></DataTemplate>
+    <DataTemplate DataType="vm:SettingsViewModel"><v:SettingsView /></DataTemplate>
+  </Application.DataTemplates>
+
+  <Application.Resources>
+    <ResourceDictionary>
+      <ResourceDictionary.ThemeDictionaries>
+        <ResourceDictionary x:Key="Dark">
+          <SolidColorBrush x:Key="AppBackground" Color="#121418" />
+          <SolidColorBrush x:Key="NavBackground" Color="#0D0F12" />
+          <SolidColorBrush x:Key="CardBackground" Color="#1B1E24" />
+          <SolidColorBrush x:Key="CardBorder" Color="#2A2F38" />
+          <SolidColorBrush x:Key="MutedText" Color="#9AA3AF" />
+          <SolidColorBrush x:Key="SubtleFill" Color="#242831" />
+        </ResourceDictionary>
+        <ResourceDictionary x:Key="Light">
+          <SolidColorBrush x:Key="AppBackground" Color="#F3F4F6" />
+          <SolidColorBrush x:Key="NavBackground" Color="#E5E7EB" />
+          <SolidColorBrush x:Key="CardBackground" Color="#FFFFFF" />
+          <SolidColorBrush x:Key="CardBorder" Color="#D1D5DB" />
+          <SolidColorBrush x:Key="MutedText" Color="#4B5563" />
+          <SolidColorBrush x:Key="SubtleFill" Color="#EEF0F3" />
+        </ResourceDictionary>
+      </ResourceDictionary.ThemeDictionaries>
+      <SolidColorBrush x:Key="OkBrush" Color="#34C759" />
+      <SolidColorBrush x:Key="WarnBrush" Color="#FF9F0A" />
+      <SolidColorBrush x:Key="ErrorBrush" Color="#FF453A" />
+      <SolidColorBrush x:Key="AccentBrushLocal" Color="#2E9BFF" />
+      <local:IconConverter x:Key="IconConverter" />
+      <local:BoolToBrushConverter x:Key="StatusBrushConverter" TrueBrush="#FF453A" FalseBrush="#9AA3AF" />
+      <local:BoolToBrushConverter x:Key="ReachableBrushConverter" TrueBrush="#34C759" FalseBrush="#FF453A" />
+      <StreamGeometry x:Key="Icon.Home">M3,11 L12,3 L21,11 L21,21 L14,21 L14,15 L10,15 L10,21 L3,21 Z</StreamGeometry>
+      <StreamGeometry x:Key="Icon.Lighting">M12,2 C15.9,2 19,5.1 19,9 C19,11.4 17.8,13.5 16,14.7 L16,17 L8,17 L8,14.7 C6.2,13.5 5,11.4 5,9 C5,5.1 8.1,2 12,2 Z M9,19 L15,19 L15,21 L9,21 Z</StreamGeometry>
+      <StreamGeometry x:Key="Icon.Fan">F0 M12,1 A11,11 0 1 1 11.99,1 Z M12,3 A9,9 0 1 0 12.01,3 Z M12,10 C13,6 15,4.5 16.8,5.6 C18,6.4 17.2,9.3 13.4,11 Z M14,12 C18,13 19.5,15 18.4,16.8 C17.6,18 14.7,17.2 13,13.4 Z M12,14 C11,18 9,19.5 7.2,18.4 C6,17.6 6.8,14.7 10.6,13 Z M10,12 C6,11 4.5,9 5.6,7.2 C6.4,6 9.3,6.8 11,10.6 Z</StreamGeometry>
+      <StreamGeometry x:Key="Icon.Screen">F0 M2,3 L22,3 L22,17 L2,17 Z M4,5 L4,15 L20,15 L20,5 Z M8,19 L16,19 L16,21 L8,21 Z</StreamGeometry>
+      <StreamGeometry x:Key="Icon.Ring">F0 M12,2 A10,10 0 1 1 11.99,2 Z M12,5 A7,7 0 1 0 12.01,5 Z M12,8 A4,4 0 1 1 11.99,8 Z M12,10 A2,2 0 1 0 12.01,10 Z</StreamGeometry>
+      <StreamGeometry x:Key="Icon.Settings">M3,5 L21,5 L21,7 L3,7 Z M3,11 L21,11 L21,13 L3,13 Z M3,17 L21,17 L21,19 L3,19 Z M7,3 L10,3 L10,9 L7,9 Z M14,9 L17,9 L17,15 L14,15 Z M8,15 L11,15 L11,21 L8,21 Z</StreamGeometry>
+      <StreamGeometry x:Key="Icon.Rotate">M12,4 C15.3,4 18.1,6.2 19,9.3 L21,9.3 L18,13 L15,9.3 L17,9.3 C16.2,7.3 14.3,6 12,6 C8.7,6 6,8.7 6,12 C6,15.3 8.7,18 12,18 C13.7,18 15.2,17.3 16.2,16.2 L17.6,17.6 C16.2,19.1 14.2,20 12,20 C7.6,20 4,16.4 4,12 C4,7.6 7.6,4 12,4 Z</StreamGeometry>
+    </ResourceDictionary>
+  </Application.Resources>
+
+  <Application.Styles>
+    <FluentTheme />
+    <StyleInclude Source="avares://Avalonia.Controls.ColorPicker/Themes/Fluent/Fluent.xaml" />
+    <StyleInclude Source="/Styles.axaml" />
+  </Application.Styles>
+</Application>

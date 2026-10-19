@@ -1,0 +1,13 @@
+# Lian Li controllers supported by lconnect-linux: give the 'lconnect' group access to their hidraw nodes.
+
+# UNI FAN TL controller (Nuvoton) and TL LCD fans (Sunplus)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0416", ATTRS{idProduct}=="7372", GROUP="lconnect", MODE="0660", TAG+="systemd", ENV{SYSTEMD_WANTS}+="lconnectd.service"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="04fc", ATTRS{idProduct}=="7393", GROUP="lconnect", MODE="0660"
+
+# UNI HUB SL / AL / SL Infinity / SL V2 / AL V2 (ENE 6K77)
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="0cf2", ATTRS{idProduct}=="a10[0-5]", GROUP="lconnect", MODE="0660", TAG+="systemd", ENV{SYSTEMD_WANTS}+="lconnectd.service"
+
+# Keep the controller and LCD fans out of USB autosuspend; a suspended LCD stalls frame streaming.
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0416", ATTR{idProduct}=="7372", TEST=="power/control", ATTR{power/control}="on"
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="04fc", ATTR{idProduct}=="7393", TEST=="power/control", ATTR{power/control}="on"
+ACTION=="add", SUBSYSTEM=="usb", ATTR{idVendor}=="0cf2", ATTR{idProduct}=="a10[0-5]", TEST=="power/control", ATTR{power/control}="on"

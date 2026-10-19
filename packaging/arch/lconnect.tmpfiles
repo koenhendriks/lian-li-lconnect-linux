@@ -1,0 +1,7 @@
+# Shared data directory: owned by the daemon, writable by members of the 'lconnect' group (setgid so new
+# files and folders keep the group).
+d /var/lib/lconnect 2770 lconnect lconnect -
+d /var/lib/lconnect/device 2770 lconnect lconnect -
+d /var/lib/lconnect/profile 2770 lconnect lconnect -
+d /var/lib/lconnect/repo 2770 lconnect lconnect -
+d /var/lib/lconnect/assets 2770 lconnect lconnect -

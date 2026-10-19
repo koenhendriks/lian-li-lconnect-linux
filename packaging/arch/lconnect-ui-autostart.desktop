@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=L-Connect (tray)
+Comment=Start the L-Connect tray icon at login
+Exec=lconnect-ui --background
+Icon=preferences-desktop-color
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true

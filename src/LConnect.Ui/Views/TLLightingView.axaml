@@ -1,0 +1,119 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:LConnectUi.ViewModels"
+             xmlns:v="using:LConnectUi.Views"
+             xmlns:svc="using:LConnectUi.Services"
+             x:Class="LConnectUi.Views.TLLightingView"
+             x:DataType="vm:TLLightingViewModel">
+  <ScrollViewer>
+    <StackPanel Margin="28,24" Spacing="16">
+      <DockPanel>
+        <ComboBox DockPanel.Dock="Right" MinWidth="180" ItemsSource="{Binding Controllers}" SelectedItem="{Binding SelectedController}"
+                  IsVisible="{Binding MultipleControllers}" />
+        <TextBlock Classes="h1" Text="{Binding Title}" />
+      </DockPanel>
+
+      <Border Classes="hint" IsVisible="{Binding !HasPorts}">
+        <TextBlock Text="{Binding NoDeviceHint}" TextWrapping="Wrap" />
+      </Border>
+
+      <Grid ColumnDefinitions="300,16,*" IsVisible="{Binding HasPorts}">
+        <!-- Ports and groups -->
+        <StackPanel Spacing="16">
+          <Border Classes="card">
+            <StackPanel Spacing="10">
+              <TextBlock Classes="h2" Text="Ports" Margin="0" />
+              <ListBox Classes="chips" ItemsSource="{Binding Ports}" SelectedItem="{Binding SelectedPort}" IsEnabled="{Binding !IsMerged}">
+                <ListBox.ItemTemplate>
+                  <DataTemplate x:DataType="vm:PortItem">
+                    <StackPanel Spacing="2">
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                      <TextBlock Classes="label" FontSize="11" Text="{Binding Summary}" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+              <TextBlock Classes="h2" Text="Groups" Margin="0,6,0,0" />
+              <ListBox ItemsSource="{Binding Groups}" SelectedItem="{Binding SelectedGroup}" IsEnabled="{Binding !IsMerged}" Background="Transparent">
+                <ListBox.ItemTemplate>
+                  <DataTemplate x:DataType="vm:GroupItem">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <StackPanel>
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                        <TextBlock Classes="label" FontSize="11" Text="{Binding FansText}" />
+                      </StackPanel>
+                      <TextBlock Grid.Column="1" Classes="muted" Text="{Binding RpmText}" VerticalAlignment="Center" />
+                    </Grid>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+              <ToggleSwitch IsChecked="{Binding IsMerged}" OnContent="Sync all ports (merged)" OffContent="Sync all ports (merged)" />
+            </StackPanel>
+          </Border>
+
+          <Border Classes="card">
+            <StackPanel Spacing="10">
+              <TextBlock Classes="h2" Text="Direction &amp; test light" Margin="0" />
+              <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
+                         Text="{svc:Tr I18n.Hint.LightingTest, 'The selected device lights up to identify its light bars and flow direction.'}" />
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <Button Content="Test top" Command="{Binding TestTopCommand}" IsEnabled="{Binding !IsBusy}" />
+                <Button Content="Test bottom" Command="{Binding TestBottomCommand}" IsEnabled="{Binding !IsBusy}" />
+              </StackPanel>
+              <CheckBox Content="Reverse flow direction of this port" IsChecked="{Binding PortReverse}" />
+              <CheckBox Content="Group: swap left / right" IsChecked="{Binding GroupSwapLeftRight}" />
+              <CheckBox Content="Group: swap top / bottom light bars" IsChecked="{Binding GroupSwapTopBottom}" />
+              <ItemsControl ItemsSource="{Binding FanCalibrations}">
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:FanCalibrationItem">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                      <TextBlock Text="{Binding Name}" Width="44" VerticalAlignment="Center" Classes="label" />
+                      <CheckBox Content="swap L/R" IsChecked="{Binding SwapLeftRight}" />
+                      <CheckBox Content="swap T/B" IsChecked="{Binding SwapTopBottom}" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <Button Content="Apply direction settings" Command="{Binding ApplyCalibrationCommand}" IsEnabled="{Binding !IsBusy}" />
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
+        <!-- Effect editor -->
+        <Border Classes="card" Grid.Column="2" VerticalAlignment="Top">
+          <StackPanel Spacing="14">
+            <StackPanel>
+              <TextBlock Classes="h2" Text="{svc:Tr I18n.Text.EffectMode, 'Effect'}" Margin="0" />
+              <TextBlock Classes="muted" FontSize="12" Text="{Binding TargetDescription}" />
+            </StackPanel>
+            <Grid ColumnDefinitions="110,*" RowDefinitions="Auto,Auto,Auto,Auto" IsEnabled="{Binding CanEdit}">
+              <TextBlock Classes="label" Text="Side" />
+              <ComboBox Grid.Column="1" MinWidth="200" ItemsSource="{Binding Scopes}" SelectedItem="{Binding SelectedScope}" />
+              <TextBlock Grid.Row="1" Classes="label" Text="Target" Margin="0,10,0,0" IsVisible="{Binding ShowTargets}" />
+              <ComboBox Grid.Row="1" Grid.Column="1" Margin="0,10,0,0" MinWidth="200" ItemsSource="{Binding Targets}"
+                        SelectedItem="{Binding SelectedTarget}" IsVisible="{Binding ShowTargets}" />
+              <TextBlock Grid.Row="2" Classes="label" Text="{svc:Tr I18n.Text.LightingEffects, 'Effect'}" Margin="0,10,0,0" />
+              <ComboBox Grid.Row="2" Grid.Column="1" Margin="0,10,0,0" MinWidth="260" MaxDropDownHeight="420"
+                        ItemsSource="{Binding Modes}" SelectedItem="{Binding SelectedMode}" />
+              <StackPanel Grid.Row="3" Grid.Column="1" Margin="0,10,0,0" Spacing="6" IsVisible="{Binding IsSideScope}">
+                <CheckBox Content="Same effect on both sides" IsChecked="{Binding IsSyncSide}" />
+                <CheckBox Content="Use the bottom side's effect for both" IsChecked="{Binding SyncBottomSide}" IsEnabled="{Binding IsSyncSide}" />
+              </StackPanel>
+            </Grid>
+            <Separator />
+            <Panel IsEnabled="{Binding CanEdit}">
+              <v:LightingEditorView DataContext="{Binding Editor}" />
+            </Panel>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button Classes="accent" Content="{svc:Tr I18n.Text.Apply, 'Apply'}" Command="{Binding ApplyCommand}" IsEnabled="{Binding !IsBusy}" />
+              <Button Content="Apply to all groups" Command="{Binding ApplyToAllGroupsCommand}" IsEnabled="{Binding !IsBusy}" />
+              <Button Content="{svc:Tr I18n.Text.Default, 'Default'}" Command="{Binding ResetToDefaultCommand}" IsEnabled="{Binding !IsBusy}" />
+            </StackPanel>
+            <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap"
+                       Foreground="{Binding StatusIsError, Converter={StaticResource StatusBrushConverter}}" />
+          </StackPanel>
+        </Border>
+      </Grid>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

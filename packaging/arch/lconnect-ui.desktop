@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=L-Connect
+GenericName=Fan and RGB control
+Comment=Control Lian Li UNI FAN lighting, fan speed and LCD screens
+Exec=lconnect-ui
+Icon=preferences-desktop-color
+Terminal=false
+Categories=Settings;HardwareSettings;
+Keywords=fan;rgb;lcd;lian li;uni fan;
+StartupWMClass=lconnect-ui

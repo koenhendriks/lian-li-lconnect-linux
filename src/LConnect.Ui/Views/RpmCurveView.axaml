@@ -1,0 +1,59 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:LConnectUi.ViewModels"
+             xmlns:c="using:LConnectUi.Controls"
+             xmlns:svc="using:LConnectUi.Services"
+             x:Class="LConnectUi.Views.RpmCurveView"
+             x:DataType="vm:RpmCurveViewModel">
+  <StackPanel Spacing="12">
+    <Grid ColumnDefinitions="110,*">
+      <TextBlock Classes="label" Text="{svc:Tr I18n.Text.FanProfile, 'Fan profile'}" />
+      <ComboBox Grid.Column="1" MinWidth="220" ItemsSource="{Binding Modes}" SelectedItem="{Binding SelectedMode}" />
+    </Grid>
+
+    <Border Classes="hint" IsVisible="{Binding IsLocked}">
+      <TextBlock Text="{Binding LockedHint}" TextWrapping="Wrap" />
+    </Border>
+
+    <WrapPanel IsEnabled="{Binding !IsLocked}">
+      <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,0,28,6">
+        <TextBlock Classes="label" Text="Reference" />
+        <RadioButton Content="{svc:Tr I18n.Text.CPU, 'CPU'}" IsChecked="{Binding !UseGpu, Mode=OneWay}" />
+        <RadioButton Content="{svc:Tr I18n.Text.GPU, 'GPU'}" IsChecked="{Binding UseGpu}" />
+      </StackPanel>
+      <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,0,28,6">
+        <TextBlock Classes="label" Text="Control" />
+        <RadioButton Content="Curve" IsChecked="{Binding !IsFixed, Mode=OneWay}" />
+        <RadioButton Content="Fixed speed" IsChecked="{Binding IsFixed}" />
+      </StackPanel>
+      <CheckBox Content="{svc:Tr I18n.Text.StartStop, 'Start / Stop'}" IsChecked="{Binding IsStartStop}"
+                IsVisible="{Binding SupportsStartStop}" Margin="0,0,0,6" />
+    </WrapPanel>
+
+    <c:FanCurveEditor Height="290"
+                      Phases="{Binding Phases, Mode=TwoWay}"
+                      SelectedIndex="{Binding SelectedPointIndex, Mode=TwoWay}"
+                      MinSpeed="{Binding MinSpeed}"
+                      MaxSpeed="{Binding MaxSpeed}"
+                      ChartMaxSpeed="{Binding ChartMaxSpeed}"
+                      Temperature="{Binding Temperature}"
+                      IsStartStop="{Binding IsStartStop}"
+                      IsReadOnly="{Binding !CanEditCurve}"
+                      IsVisible="{Binding HasCurve}" />
+
+    <WrapPanel IsEnabled="{Binding CanEditCurve}" IsVisible="{Binding HasCurve}">
+      <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,0,18,6">
+        <TextBlock Classes="label" Text="Selected point" />
+        <NumericUpDown Minimum="0" Maximum="100" Increment="1" FormatString="0" Width="130"
+                       Value="{Binding PointTemperature}" IsVisible="{Binding ShowPointTemperature}" />
+        <TextBlock Classes="label" Text="°C" IsVisible="{Binding ShowPointTemperature}" />
+        <NumericUpDown Minimum="{Binding MinSpeed}" Maximum="{Binding MaxSpeed}" Increment="50" FormatString="0" Width="150"
+                       Value="{Binding PointSpeed}" />
+        <TextBlock Classes="label" Text="rpm" />
+      </StackPanel>
+      <TextBlock Classes="muted" FontSize="12" Text="{Binding FanSizeText}" VerticalAlignment="Center" Margin="0,0,0,6" />
+    </WrapPanel>
+
+    <TextBlock Classes="muted" Text="No curve is available for the detected fan size." IsVisible="{Binding !HasCurve}" />
+  </StackPanel>
+</UserControl>

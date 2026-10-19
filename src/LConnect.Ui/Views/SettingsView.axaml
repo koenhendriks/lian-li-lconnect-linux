@@ -1,0 +1,78 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:LConnectUi.ViewModels"
+             xmlns:svc="using:LConnectUi.Services"
+             x:Class="LConnectUi.Views.SettingsView"
+             x:DataType="vm:SettingsViewModel">
+  <ScrollViewer>
+    <StackPanel Margin="28,24" Spacing="16" MaxWidth="980" HorizontalAlignment="Left">
+      <TextBlock Classes="h1" Text="{Binding Title}" />
+
+      <Border Classes="card">
+        <StackPanel Spacing="12">
+          <TextBlock Classes="h2" Text="{svc:Tr I18n.Text.General, 'General'}" Margin="0" />
+          <Grid ColumnDefinitions="280,*" RowDefinitions="Auto,Auto,Auto,Auto">
+            <TextBlock Classes="label" Text="{svc:Tr I18n.Text.Language, 'Language'}" />
+            <ComboBox Grid.Column="1" MinWidth="200" ItemsSource="{Binding Languages}" SelectedItem="{Binding SelectedLanguage}" />
+            <TextBlock Grid.Row="1" Classes="label" Text="{svc:Tr I18n.Text.MotherboardLightingSync, 'MB Lighting Sync'}" Margin="0,12,0,0" />
+            <ToggleSwitch Grid.Row="1" Grid.Column="1" Margin="0,12,0,0" IsChecked="{Binding MotherboardArgbSync}" />
+            <TextBlock Grid.Row="2" Classes="label" Text="{svc:Tr I18n.Text.MotherboardRpmSync, 'MB RPM Sync'}" Margin="0,12,0,0" />
+            <ToggleSwitch Grid.Row="2" Grid.Column="1" Margin="0,12,0,0" IsChecked="{Binding MotherboardRpmSync}" />
+            <TextBlock Grid.Row="3" Classes="label" Text="Keep running in the tray when closed" Margin="0,12,0,0" />
+            <ToggleSwitch Grid.Row="3" Grid.Column="1" Margin="0,12,0,0" IsChecked="{Binding CloseToTray}" />
+          </Grid>
+        </StackPanel>
+      </Border>
+
+      <Border Classes="card">
+        <StackPanel Spacing="12">
+          <TextBlock Classes="h2" Text="Import from Windows L-Connect 3" Margin="0" />
+          <TextBlock Classes="muted" TextWrapping="Wrap"
+                     Text="Bring over your lighting, fan and LCD settings from a Windows installation (its 'appdata' folder), and the LCD sensor screens, built-in animations and media from the install folder (e.g. C:\Program Files\Lian-Li\L-Connect 3)." />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="Import settings…" Command="{Binding BrowseWindowsSettingsCommand}" IsEnabled="{Binding !IsBusy}" />
+            <Button Content="Import assets…" Command="{Binding BrowseAssetsCommand}" IsEnabled="{Binding !IsBusy}" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <Border Classes="card">
+        <StackPanel Spacing="12">
+          <TextBlock Classes="h2" Text="Profiles" Margin="0" />
+          <TextBlock Classes="muted" TextWrapping="Wrap" Text="{svc:Tr I18n.Hint.ImportExportButton, 'You can Export/Import all the lighting settings.'}" />
+          <StackPanel Orientation="Horizontal" Spacing="8">
+            <Button Content="{svc:Tr I18n.Text.Export, 'Export'}" Command="{Binding BrowseExportProfilesCommand}" IsEnabled="{Binding !IsBusy}" />
+            <Button Content="{svc:Tr I18n.Text.Import, 'Import'}" Command="{Binding BrowseImportProfilesCommand}" IsEnabled="{Binding !IsBusy}" />
+          </StackPanel>
+        </StackPanel>
+      </Border>
+
+      <Border Classes="card" IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+        <StackPanel Spacing="8">
+          <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap"
+                     Foreground="{Binding StatusIsError, Converter={StaticResource StatusBrushConverter}}" />
+          <SelectableTextBlock Classes="muted" FontFamily="monospace" FontSize="12" Text="{Binding Log}" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+
+      <Border Classes="card">
+        <StackPanel Spacing="6">
+          <TextBlock Classes="h2" Text="About" Margin="0" />
+          <TextBlock Text="{Binding Version}" />
+          <Grid ColumnDefinitions="160,*" RowDefinitions="Auto,Auto,Auto,Auto">
+            <TextBlock Classes="label" Text="Data directory" />
+            <SelectableTextBlock Grid.Column="1" Text="{Binding DataDirectory}" TextWrapping="Wrap" />
+            <TextBlock Grid.Row="1" Classes="label" Text="Daemon socket" />
+            <SelectableTextBlock Grid.Row="1" Grid.Column="1" Text="{Binding SocketPath}" TextWrapping="Wrap" />
+            <TextBlock Grid.Row="2" Classes="label" Text="UI settings" />
+            <SelectableTextBlock Grid.Row="2" Grid.Column="1" Text="{Binding SettingsFile}" TextWrapping="Wrap" />
+            <TextBlock Grid.Row="3" Classes="label" Text="Log file" />
+            <SelectableTextBlock Grid.Row="3" Grid.Column="1" Text="{Binding LogFile}" TextWrapping="Wrap" />
+          </Grid>
+          <TextBlock Classes="muted" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap"
+                     Text="Unofficial port for personal use. Lian Li and L-Connect are trademarks of their respective owners." />
+        </StackPanel>
+      </Border>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

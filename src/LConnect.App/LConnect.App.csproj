@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Non-visual logic ported from L-Connect 3.exe (controllers, profiles, stores), shared by the UI and CLI. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>LConnect3cs</RootNamespace>
+    <AssemblyName>LConnect.App</AssemblyName>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <LangVersion>latest</LangVersion>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>$(NoWarn);CS0168;CS0219;CS0162;CS0649;CS0414;CS8981;CA1416;CS4014;CS1998;CS0067</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\LConnect.Core\LConnect.Core.csproj" />
+    <EmbeddedResource Include="locales\*.xaml" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="LConnect.Ui" />
+    <InternalsVisibleTo Include="lconnect-ui" />
+    <InternalsVisibleTo Include="LConnect.Ui.Tests" />
+    <InternalsVisibleTo Include="lconnectctl" />
+    <InternalsVisibleTo Include="LConnect.Core.Tests" />
+  </ItemGroup>
+</Project>

@@ -1,0 +1,246 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:LConnectUi.ViewModels"
+             xmlns:v="using:LConnectUi.Views"
+             xmlns:svc="using:LConnectUi.Services"
+             x:Class="LConnectUi.Views.LcdView"
+             x:DataType="vm:LcdViewModel">
+  <UserControl.Styles>
+    <Style Selector="Button.tile">
+      <Setter Property="Background" Value="{DynamicResource SubtleFill}" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="2" />
+      <Setter Property="CornerRadius" Value="10" />
+      <Setter Property="Padding" Value="12" />
+      <Setter Property="VerticalAlignment" Value="Top" />
+    </Style>
+    <Style Selector="Button.tile.selected">
+      <Setter Property="BorderBrush" Value="{StaticResource AccentBrushLocal}" />
+    </Style>
+    <Style Selector="Button.media">
+      <Setter Property="Background" Value="{DynamicResource SubtleFill}" />
+      <Setter Property="BorderBrush" Value="Transparent" />
+      <Setter Property="BorderThickness" Value="2" />
+      <Setter Property="CornerRadius" Value="8" />
+      <Setter Property="Padding" Value="6" />
+      <Setter Property="Margin" Value="0,0,10,10" />
+    </Style>
+    <Style Selector="Button.media.selected">
+      <Setter Property="BorderBrush" Value="{StaticResource AccentBrushLocal}" />
+    </Style>
+  </UserControl.Styles>
+
+  <Grid>
+    <ScrollViewer>
+      <StackPanel Margin="28,24" Spacing="16">
+        <DockPanel>
+          <ComboBox DockPanel.Dock="Right" MinWidth="180" ItemsSource="{Binding Controllers}" SelectedItem="{Binding SelectedController}"
+                    IsVisible="{Binding MultipleControllers}" />
+          <TextBlock Classes="h1" Text="{Binding Title}" />
+        </DockPanel>
+
+        <Border Classes="hint" IsVisible="{Binding !HasPorts}">
+          <TextBlock Text="{Binding NoLcdHint}" TextWrapping="Wrap" />
+        </Border>
+        <Border Classes="hint" IsVisible="{Binding ShowAssetsHint}">
+          <TextBlock Text="{Binding AssetsHint}" TextWrapping="Wrap" />
+        </Border>
+
+        <Border Classes="card" IsVisible="{Binding HasPorts}">
+          <StackPanel Spacing="14">
+            <WrapPanel>
+              <StackPanel Margin="0,0,32,8" Spacing="6">
+                <TextBlock Classes="label" Text="Port" />
+                <ListBox Classes="chips" ItemsSource="{Binding Ports}" SelectedItem="{Binding SelectedPort}">
+                  <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:PortItem">
+                      <StackPanel Spacing="2">
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                        <TextBlock Classes="label" FontSize="11" Text="{Binding Summary}" />
+                      </StackPanel>
+                    </DataTemplate>
+                  </ListBox.ItemTemplate>
+                </ListBox>
+              </StackPanel>
+              <StackPanel Margin="0,0,32,8" Spacing="6" IsVisible="{Binding ShowGroupPicker}">
+                <TextBlock Classes="label" Text="{svc:Tr I18n.Text.Layout, 'Layout'}" />
+                <ComboBox MinWidth="260" ItemsSource="{Binding GroupOptions}" SelectedItem="{Binding SelectedGroupOption}">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:LcdGroupOption">
+                      <StackPanel Orientation="Horizontal" Spacing="10">
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" MinWidth="44" />
+                        <TextBlock Classes="muted" Text="{Binding Description}" />
+                      </StackPanel>
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+              </StackPanel>
+              <StackPanel Margin="0,0,0,8" Spacing="6" IsVisible="{Binding ShowGroupPicker}">
+                <TextBlock Classes="label" Text="{svc:Tr I18n.Text.RotateScreenDisplay, 'Rotate screen display'}" />
+                <Button Command="{Binding RotateGroupCommand}">
+                  <StackPanel Orientation="Horizontal" Spacing="8">
+                    <PathIcon Data="{StaticResource Icon.Rotate}" Width="14" Height="14" />
+                    <TextBlock Text="{Binding GroupRotationText}" />
+                  </StackPanel>
+                </Button>
+              </StackPanel>
+            </WrapPanel>
+
+            <TextBlock Classes="muted" Text="Waiting for the LCDs on this port…" IsVisible="{Binding !HasLcd}" />
+
+            <LayoutTransformControl HorizontalAlignment="Left" IsVisible="{Binding HasLcd}">
+              <LayoutTransformControl.LayoutTransform>
+                <RotateTransform Angle="{Binding GroupAngle}" />
+              </LayoutTransformControl.LayoutTransform>
+              <ItemsControl ItemsSource="{Binding Screens}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="14" /></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:LcdScreen">
+                    <Button Classes="tile" Classes.selected="{Binding IsSelected}"
+                            Command="{Binding $parent[v:LcdView].((vm:LcdViewModel)DataContext).SelectScreenCommand}"
+                            CommandParameter="{Binding}">
+                      <StackPanel Spacing="8">
+                        <DockPanel>
+                          <Button DockPanel.Dock="Right" Padding="6" IsVisible="{Binding CanRotate}" ToolTip.Tip="Rotate this LCD"
+                                  Command="{Binding $parent[v:LcdView].((vm:LcdViewModel)DataContext).RotateScreenCommand}"
+                                  CommandParameter="{Binding}">
+                            <PathIcon Data="{StaticResource Icon.Rotate}" Width="12" Height="12" />
+                          </Button>
+                          <TextBlock Text="{Binding Title}" FontWeight="SemiBold" VerticalAlignment="Center" />
+                        </DockPanel>
+                        <ItemsControl ItemsSource="{Binding Slots}">
+                          <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="4" /></ItemsPanelTemplate>
+                          </ItemsControl.ItemsPanel>
+                          <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:LcdSlot">
+                              <StackPanel Spacing="6" Width="132">
+                                <Border Width="128" Height="128" CornerRadius="64" ClipToBounds="True" Background="#000000">
+                                  <Panel>
+                                    <Image Source="{Binding Preview}" Stretch="UniformToFill" IsVisible="{Binding ShowPreview}">
+                                      <Image.RenderTransform>
+                                        <RotateTransform Angle="{Binding Angle}" />
+                                      </Image.RenderTransform>
+                                    </Image>
+                                    <TextBlock Text="No image" Classes="muted" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                               IsVisible="{Binding ShowPlaceholder}" />
+                                    <Border Background="{Binding SensorBackground}" IsVisible="{Binding IsSensor}">
+                                      <Border.RenderTransform>
+                                        <RotateTransform Angle="{Binding Angle}" />
+                                      </Border.RenderTransform>
+                                      <Panel>
+                                        <Ellipse Margin="10" Stroke="{Binding SensorForeground}" StrokeThickness="5" Opacity="0.85" />
+                                        <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                                          <TextBlock Text="{Binding SensorLabel}" Foreground="{Binding SensorForeground}" FontSize="10" HorizontalAlignment="Center" />
+                                          <TextBlock Text="{Binding SensorValue}" Foreground="{Binding SensorForeground}" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" />
+                                        </StackPanel>
+                                      </Panel>
+                                    </Border>
+                                  </Panel>
+                                </Border>
+                                <TextBlock Classes="label" FontSize="11" Text="{Binding LcdLabel}" HorizontalAlignment="Center" />
+                                <TextBlock Classes="muted" FontSize="11" Text="{Binding Caption}" TextWrapping="Wrap" TextAlignment="Center" MaxHeight="44" />
+                              </StackPanel>
+                            </DataTemplate>
+                          </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                      </StackPanel>
+                    </Button>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </LayoutTransformControl>
+          </StackPanel>
+        </Border>
+
+        <Border Classes="card" IsVisible="{Binding HasLcd}">
+          <StackPanel Spacing="14">
+            <WrapPanel>
+              <StackPanel Orientation="Horizontal" Spacing="10" Margin="0,0,24,8">
+                <TextBlock Classes="label" Text="Show on the selected screen" />
+                <ComboBox MinWidth="200" ItemsSource="{Binding MediaTypes}" SelectedItem="{Binding SelectedMediaType}" />
+              </StackPanel>
+              <Button Content="Add file…" Command="{Binding PickAndAddFileCommand}" IsVisible="{Binding ShowAdd}" Margin="0,0,10,8" />
+              <Button Content="{svc:Tr I18n.Text.Sync, 'Sync to other LCDs'}" Command="{Binding SyncToOthersCommand}" IsVisible="{Binding ShowSync}" Margin="0,0,10,8"
+                      ToolTip.Tip="Show the selected LCD's content on every other LCD of this port" />
+            </WrapPanel>
+
+            <StackPanel IsVisible="{Binding ShowMediaList}" Spacing="8">
+              <TextBlock Classes="muted" FontSize="12" Text="Loading media…" IsVisible="{Binding IsLoadingMedia}" />
+              <ItemsControl ItemsSource="{Binding MediaItems}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:LcdMediaItem">
+                    <Button Classes="media" Classes.selected="{Binding IsSelected}"
+                            Command="{Binding $parent[v:LcdView].((vm:LcdViewModel)DataContext).SelectMediaCommand}"
+                            CommandParameter="{Binding}">
+                      <Grid Width="104" RowDefinitions="104,Auto">
+                        <Border CornerRadius="6" ClipToBounds="True" Background="#000000">
+                          <Panel>
+                            <Image Source="{Binding Thumbnail}" Stretch="UniformToFill" IsVisible="{Binding ShowThumbnail}" />
+                            <TextBlock Text="None" HorizontalAlignment="Center" VerticalAlignment="Center" Classes="muted" IsVisible="{Binding IsNone}" />
+                          </Panel>
+                        </Border>
+                        <Button HorizontalAlignment="Right" VerticalAlignment="Top" Margin="2" Padding="6,0" FontSize="12"
+                                Content="✕" IsVisible="{Binding CanDelete}" ToolTip.Tip="Delete from the library"
+                                Command="{Binding $parent[v:LcdView].((vm:LcdViewModel)DataContext).DeleteMediaCommand}"
+                                CommandParameter="{Binding}" />
+                        <TextBlock Grid.Row="1" Margin="0,4,0,0" FontSize="11" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                      </Grid>
+                    </Button>
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </StackPanel>
+
+            <Grid ColumnDefinitions="140,*" RowDefinitions="Auto,Auto,Auto,Auto" IsVisible="{Binding ShowSensor}">
+              <TextBlock Classes="label" Text="{svc:Tr I18n.Text.Sensor, 'Sensor'}" />
+              <ListBox Grid.Column="1" Classes="chips" ItemsSource="{Binding SensorTypes}" SelectedItem="{Binding SelectedSensorTypeOption}" />
+              <TextBlock Grid.Row="1" Classes="label" Text="{svc:Tr I18n.Text.Style, 'Style'}" Margin="0,8,0,0" />
+              <ComboBox Grid.Row="1" Grid.Column="1" Margin="0,8,0,0" MinWidth="160" ItemsSource="{Binding SensorStyles}"
+                        SelectedIndex="{Binding SensorStyleIndex}" />
+              <TextBlock Grid.Row="2" Classes="label" Text="{svc:Tr I18n.Text.BackgroundColor, 'Background'}" Margin="0,14,0,0" />
+              <ItemsControl Grid.Row="2" Grid.Column="1" Margin="0,14,0,0" ItemsSource="{Binding SensorBackgroundColors}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="10" /></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:ColorSlot">
+                    <ColorPicker Color="{Binding Color, Mode=TwoWay}" IsAlphaVisible="False" IsAlphaEnabled="False" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+              <TextBlock Grid.Row="3" Classes="label" Text="{svc:Tr I18n.Text.FontColor, 'Text colours'}" Margin="0,14,0,0" />
+              <ItemsControl Grid.Row="3" Grid.Column="1" Margin="0,14,0,0" ItemsSource="{Binding SensorTextColors}">
+                <ItemsControl.ItemsPanel>
+                  <ItemsPanelTemplate><StackPanel Orientation="Horizontal" Spacing="10" /></ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                  <DataTemplate x:DataType="vm:ColorSlot">
+                    <ColorPicker Color="{Binding Color, Mode=TwoWay}" IsAlphaVisible="False" IsAlphaEnabled="False" />
+                  </DataTemplate>
+                </ItemsControl.ItemTemplate>
+              </ItemsControl>
+            </Grid>
+
+            <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap"
+                       Foreground="{Binding StatusIsError, Converter={StaticResource StatusBrushConverter}}" />
+          </StackPanel>
+        </Border>
+      </StackPanel>
+    </ScrollViewer>
+
+    <Border Background="#B0000000" IsVisible="{Binding IsBusy}">
+      <Border Classes="card" HorizontalAlignment="Center" VerticalAlignment="Center" Width="380">
+        <StackPanel Spacing="10">
+          <TextBlock Text="{Binding BusyText}" TextWrapping="Wrap" />
+          <ProgressBar Minimum="0" Maximum="100" Value="{Binding Progress}" ShowProgressText="True" />
+        </StackPanel>
+      </Border>
+    </Border>
+  </Grid>
+</UserControl>

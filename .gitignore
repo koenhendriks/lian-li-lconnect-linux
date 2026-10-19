@@ -1,0 +1,15 @@
+bin/
+obj/
+*.user
+.vs/
+artifacts/
+/tmp/
+
+# Raw decompiler output: kept locally to diff future L-Connect versions, never published
+/vendor/
+
+# makepkg output
+/packaging/arch/src/
+/packaging/arch/pkg/
+/packaging/arch/lconnect-linux/
+*.pkg.tar.zst

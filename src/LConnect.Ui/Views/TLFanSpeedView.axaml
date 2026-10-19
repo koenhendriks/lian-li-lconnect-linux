@@ -1,0 +1,82 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:LConnectUi.ViewModels"
+             xmlns:v="using:LConnectUi.Views"
+             xmlns:svc="using:LConnectUi.Services"
+             x:Class="LConnectUi.Views.TLFanSpeedView"
+             x:DataType="vm:TLFanSpeedViewModel">
+  <ScrollViewer>
+    <StackPanel Margin="28,24" Spacing="16">
+      <DockPanel>
+        <ComboBox DockPanel.Dock="Right" MinWidth="180" ItemsSource="{Binding Controllers}" SelectedItem="{Binding SelectedController}"
+                  IsVisible="{Binding MultipleControllers}" />
+        <TextBlock Classes="h1" Text="{Binding Title}" />
+      </DockPanel>
+
+      <Border Classes="hint" IsVisible="{Binding !HasPorts}">
+        <TextBlock Text="{Binding NoDeviceHint}" TextWrapping="Wrap" />
+      </Border>
+
+      <Grid ColumnDefinitions="300,16,*" IsVisible="{Binding HasPorts}">
+        <StackPanel Spacing="16">
+          <Border Classes="card">
+            <StackPanel Spacing="10">
+              <TextBlock Classes="h2" Text="Ports" Margin="0" />
+              <ListBox Classes="chips" ItemsSource="{Binding Ports}" SelectedItem="{Binding SelectedPort}">
+                <ListBox.ItemTemplate>
+                  <DataTemplate x:DataType="vm:PortItem">
+                    <StackPanel Spacing="2">
+                      <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                      <TextBlock Classes="label" FontSize="11" Text="{Binding Summary}" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+              <TextBlock Classes="h2" Text="Groups" Margin="0,6,0,0" />
+              <ListBox ItemsSource="{Binding Groups}" SelectedItem="{Binding SelectedGroup}" Background="Transparent">
+                <ListBox.ItemTemplate>
+                  <DataTemplate x:DataType="vm:GroupItem">
+                    <Grid ColumnDefinitions="*,Auto">
+                      <StackPanel>
+                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                        <TextBlock Classes="label" FontSize="11" Text="{Binding FansText}" />
+                      </StackPanel>
+                      <TextBlock Grid.Column="1" Classes="muted" Text="{Binding RpmText}" VerticalAlignment="Center" />
+                    </Grid>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+            </StackPanel>
+          </Border>
+          <Border Classes="card">
+            <StackPanel Spacing="8">
+              <TextBlock Classes="h2" Text="{svc:Tr I18n.Text.MotherboardRpmSync, 'MB RPM Sync'}" Margin="0" />
+              <TextBlock Classes="muted" FontSize="12" TextWrapping="Wrap"
+                         Text="Let the motherboard's PWM fan header drive the fan speed instead of these profiles." />
+              <ToggleSwitch IsChecked="{Binding MotherboardRpmSync}" Command="{Binding ToggleMotherboardSyncCommand}" />
+            </StackPanel>
+          </Border>
+        </StackPanel>
+
+        <Border Classes="card" Grid.Column="2" VerticalAlignment="Top">
+          <StackPanel Spacing="14">
+            <DockPanel>
+              <TextBlock DockPanel.Dock="Right" Classes="value" FontSize="18" Text="{Binding GroupRpmText}" />
+              <TextBlock Classes="h2" Text="{svc:Tr I18n.Text.FanPumpRPMSetting, 'Fan speed'}" Margin="0" VerticalAlignment="Center" />
+            </DockPanel>
+            <Panel IsEnabled="{Binding CanEdit}">
+              <v:RpmCurveView DataContext="{Binding Curve}" />
+            </Panel>
+            <StackPanel Orientation="Horizontal" Spacing="8">
+              <Button Classes="accent" Content="{svc:Tr I18n.Text.Apply, 'Apply'}" Command="{Binding ApplyCommand}" IsEnabled="{Binding !IsBusy}" />
+              <Button Content="Apply to all groups on this port" Command="{Binding ApplyToPortCommand}" IsEnabled="{Binding !IsBusy}" />
+              <Button Content="{svc:Tr I18n.Text.Default, 'Default'}" Command="{Binding ResetToDefaultCommand}" IsEnabled="{Binding !IsBusy}" />
+            </StackPanel>
+            <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap"
+                       Foreground="{Binding StatusIsError, Converter={StaticResource StatusBrushConverter}}" />
+          </StackPanel>
+        </Border>
+      </Grid>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>

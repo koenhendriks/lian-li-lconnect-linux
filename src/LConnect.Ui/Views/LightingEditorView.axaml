@@ -1,0 +1,49 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:LConnectUi.ViewModels"
+             xmlns:svc="using:LConnectUi.Services"
+             x:Class="LConnectUi.Views.LightingEditorView"
+             x:DataType="vm:LightingEditorViewModel">
+  <StackPanel Spacing="14">
+    <StackPanel Spacing="6" IsVisible="{Binding ShowColors}">
+      <TextBlock Classes="label" Text="{svc:Tr I18n.Text.ColorSet, 'Colours'}" />
+      <ItemsControl ItemsSource="{Binding Colors}">
+        <ItemsControl.ItemsPanel>
+          <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+        <ItemsControl.ItemTemplate>
+          <DataTemplate x:DataType="vm:ColorSlot">
+            <StackPanel Margin="0,0,10,6" Spacing="2">
+              <ColorPicker Color="{Binding Color, Mode=TwoWay}" IsAlphaVisible="False" IsAlphaEnabled="False" />
+              <TextBlock Classes="label" FontSize="11" HorizontalAlignment="Center" Text="{Binding Label}" />
+            </StackPanel>
+          </DataTemplate>
+        </ItemsControl.ItemTemplate>
+      </ItemsControl>
+    </StackPanel>
+
+    <Grid ColumnDefinitions="110,*,56" IsVisible="{Binding ShowSpeed}">
+      <TextBlock Classes="label" Text="{svc:Tr I18n.Text.Speed, 'Speed'}" />
+      <Slider Grid.Column="1" Minimum="0" Maximum="100" TickFrequency="25" IsSnapToTickEnabled="True"
+              TickPlacement="BottomRight" Value="{Binding Speed}" />
+      <TextBlock Grid.Column="2" Text="{Binding SpeedText}" VerticalAlignment="Center" HorizontalAlignment="Right" />
+    </Grid>
+
+    <Grid ColumnDefinitions="110,*,56" IsVisible="{Binding ShowBrightness}">
+      <TextBlock Classes="label" Text="{svc:Tr I18n.Text.Brightness, 'Brightness'}" />
+      <Slider Grid.Column="1" Minimum="0" Maximum="100" TickFrequency="25" IsSnapToTickEnabled="True"
+              TickPlacement="BottomRight" Value="{Binding Brightness}" />
+      <TextBlock Grid.Column="2" Text="{Binding BrightnessText}" VerticalAlignment="Center" HorizontalAlignment="Right" />
+    </Grid>
+
+    <Grid ColumnDefinitions="110,*" IsVisible="{Binding ShowDirection}">
+      <TextBlock Classes="label" Text="{svc:Tr I18n.Text.Direction, 'Direction'}" />
+      <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="16">
+        <RadioButton GroupName="dir" Content="Left / counter-clockwise" IsChecked="{Binding DirectionLeft}" />
+        <RadioButton GroupName="dir" Content="Right / clockwise" IsChecked="{Binding !DirectionLeft, Mode=OneWay}" />
+      </StackPanel>
+    </Grid>
+
+    <TextBlock Classes="muted" Text="This effect has no adjustable settings." IsVisible="{Binding !HasAnySetting}" />
+  </StackPanel>
+</UserControl>

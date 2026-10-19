@@ -1,0 +1,100 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:LConnectUi.ViewModels"
+             x:Class="LConnectUi.Views.OverviewView"
+             x:DataType="vm:OverviewViewModel">
+  <ScrollViewer>
+    <StackPanel Margin="28,24" Spacing="16">
+      <TextBlock Classes="h1" Text="{Binding Title}" />
+
+      <Border Classes="banner" IsVisible="{Binding ShowDaemonHint}">
+        <StackPanel Spacing="4">
+          <TextBlock Text="Daemon not reachable" FontWeight="SemiBold" />
+          <TextBlock Text="{Binding DaemonHint}" TextWrapping="Wrap" />
+        </StackPanel>
+      </Border>
+
+      <Border Classes="card" IsVisible="{Binding DaemonReachable}">
+        <StackPanel>
+          <TextBlock Classes="h2" Text="Sensors" />
+          <ItemsControl ItemsSource="{Binding Sensors}">
+            <ItemsControl.ItemsPanel>
+              <ItemsPanelTemplate><WrapPanel /></ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:SensorTile">
+                <Border Background="{DynamicResource SubtleFill}" CornerRadius="8" Padding="14,12" Margin="0,0,12,12" Width="170">
+                  <StackPanel Spacing="4">
+                    <TextBlock Classes="label" Text="{Binding Label}" />
+                    <TextBlock Classes="value" Text="{Binding Value}" />
+                    <ProgressBar Minimum="0" Maximum="100" Value="{Binding Percent}" Height="4" MinWidth="0" />
+                    <TextBlock Classes="label" FontSize="11" Text="{Binding Sub}" />
+                  </StackPanel>
+                </Border>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+
+      <Grid ColumnDefinitions="*,16,*" IsVisible="{Binding DaemonReachable}">
+        <Border Classes="card" Grid.Column="0" VerticalAlignment="Stretch">
+          <StackPanel>
+            <TextBlock Classes="h2" Text="Controllers" />
+            <TextBlock Classes="muted" Text="No controllers connected." IsVisible="{Binding !HasControllers}" />
+            <ItemsControl ItemsSource="{Binding Controllers}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:OverviewRow">
+                  <StackPanel Margin="0,0,0,10" Spacing="2">
+                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                    <TextBlock Classes="muted" FontSize="12" Text="{Binding Detail}" TextWrapping="Wrap" />
+                    <TextBlock Classes="muted" FontSize="11" Text="{Binding Extra}" TextTrimming="CharacterEllipsis" />
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+        <Border Classes="card" Grid.Column="2" VerticalAlignment="Stretch">
+          <StackPanel>
+            <TextBlock Classes="h2" Text="LCD fans" />
+            <TextBlock Classes="muted" Text="No TL LCD fans detected." IsVisible="{Binding !HasLcds}" />
+            <ItemsControl ItemsSource="{Binding Lcds}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate x:DataType="vm:OverviewRow">
+                  <StackPanel Margin="0,0,0,10" Spacing="2">
+                    <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                    <TextBlock Classes="muted" FontSize="12" Text="{Binding Detail}" />
+                    <TextBlock Classes="muted" FontSize="11" Text="{Binding Extra}" TextTrimming="CharacterEllipsis" />
+                  </StackPanel>
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
+          </StackPanel>
+        </Border>
+      </Grid>
+
+      <Border Classes="card" IsVisible="{Binding DaemonReachable}">
+        <StackPanel>
+          <TextBlock Classes="h2" Text="Fan speeds" />
+          <TextBlock Classes="muted" Text="No fans reported." IsVisible="{Binding !HasFanPorts}" />
+          <ItemsControl ItemsSource="{Binding FanPorts}">
+            <ItemsControl.ItemTemplate>
+              <DataTemplate x:DataType="vm:OverviewRow">
+                <Grid ColumnDefinitions="200,180,*" Margin="0,0,0,8">
+                  <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                  <TextBlock Grid.Column="1" Classes="muted" Text="{Binding Detail}" />
+                  <TextBlock Grid.Column="2" Classes="muted" Text="{Binding Extra}" TextWrapping="Wrap" />
+                </Grid>
+              </DataTemplate>
+            </ItemsControl.ItemTemplate>
+          </ItemsControl>
+        </StackPanel>
+      </Border>
+
+      <TextBlock Classes="muted" FontSize="11" IsVisible="{Binding DaemonReachable}">
+        <Run Text="Data directory: " /><Run Text="{Binding DataDirectory}" /><Run Text="   ·   Socket: " /><Run Text="{Binding SocketPath}" />
+      </TextBlock>
+    </StackPanel>
+  </ScrollViewer>
+</UserControl>
