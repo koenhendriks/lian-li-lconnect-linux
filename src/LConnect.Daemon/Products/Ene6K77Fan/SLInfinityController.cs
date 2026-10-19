@@ -916,6 +916,10 @@ internal class SLInfinityController : IController
 				setLightingConfig(emptyConfig);
 			}
 		});
+		// Not in the original: without a frame sync after the merged effect, the ports run it out of phase after a
+		// service start or settings import (the merge order sent before it desyncs them). Normal effects already end
+		// with this sync. Verified on an SL Infinity hub; the golden tests list it as a deliberate deviation.
+		syncLightingFrame();
 	}
 
 	private void syncLightingFrame()

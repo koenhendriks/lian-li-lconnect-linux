@@ -12,6 +12,15 @@ namespace LConnect.Core.Tests;
 // port produces byte-identical HID traffic.
 public class GoldenTests
 {
+	// Deliberate differences from the original, applied to its recorded traffic before comparing so everything else
+	// stays byte-checked. Each one was verified on real hardware.
+	private static readonly Dictionary<string, Func<string, string>> Deviations = new Dictionary<string, Func<string, string>>
+	{
+		// SLInfinityController.setMergeLighting ends with a frame sync (SetFrame 1); without it a merged effect runs
+		// out of phase across the ports after a service start or settings import.
+		["svc.slinf.applyall"] = (string expected) => expected + "\nF:4/e0600001"
+	};
+
 	internal static string RepoRoot
 	{
 		get
@@ -78,7 +87,8 @@ public class GoldenTests
 	{
 		Dictionary<string, string> dictionary = parse(File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "golden.txt")));
 		Assert.True(actual.Value.ContainsKey(scenario), "scenario missing in port: " + scenario);
-		Assert.Equal(dictionary[scenario], actual.Value[scenario]);
+		string expected = Deviations.TryGetValue(scenario, out var deviation) ? deviation(dictionary[scenario]) : dictionary[scenario];
+		Assert.Equal(expected, actual.Value[scenario]);
 	}
 
 	[Fact]
