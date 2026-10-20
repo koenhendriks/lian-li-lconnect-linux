@@ -150,8 +150,7 @@ public static class TestEnvironment
 			["LCONNECT_FAKE_CPU_TEMP"] = "55",
 			["LCONNECT_FAKE_GPU_TEMP"] = "48",
 			["LCONNECT_DATA_DIR"] = DataDir,
-			["LCONNECT_SOCKET"] = SocketPath,
-			["CACHE_DIRECTORY"] = Path.Combine(DataDir, "cache")
+			["LCONNECT_SOCKET"] = SocketPath
 		};
 		foreach (KeyValuePair<string, string> item in dictionary)
 		{

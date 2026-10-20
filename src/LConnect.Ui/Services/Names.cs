@@ -75,6 +75,7 @@ public static class Names
 			TLLCDSensorType.CPULoad => Loc.Get("I18n.Text.CPULoad", "CPU Load"),
 			TLLCDSensorType.GPULoad => Loc.Get("I18n.Text.GPULoad", "GPU Load"),
 			TLLCDSensorType.FanRPM => "Fan RPM",
+			TLLCDSensorType.CPUTempLoad => "CPU Temp + Load",
 			_ => type.ToString(),
 		};
 	}

@@ -1,6 +1,6 @@
 using System;
 using System.Collections.Generic;
-using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using LConnectCore;
 using LConnectCore.Products.TLLCD;
@@ -33,7 +33,7 @@ public class TLLCDVideoThread
 
 	public List<byte[]> Images { get; set; }
 
-	internal SensorScreenRenderer ScreenWebBrowser { get; set; }
+	internal SensorScreenRenderer SensorRenderer { get; set; }
 
 	public TLLCDSensorSetting SensorSetting { get; set; }
 
@@ -45,11 +45,15 @@ public class TLLCDVideoThread
 
 	public TLLCDVideoThread Sync { get; set; }
 
-	private readonly System.Threading.SemaphoreSlim browserLock = new System.Threading.SemaphoreSlim(1, 1);
+	// Fraction of the remaining distance covered per frame: at 25 fps a change is ~93% done after 1 s and settled
+	// before the next reading 2 s later.
+	private const double ProgressEasing = 0.1;
 
-	private DateTime nextBrowserRetry = DateTime.MinValue;
+	private double targetProgress;
 
-	private TimeSpan browserRetryDelay = TimeSpan.FromSeconds(10);
+	private double shownProgress;
+
+	private int animatingProgress;
 
 	private static readonly bool logStats = Environment.GetEnvironmentVariable("LCONNECT_LCD_STATS") == "1";
 
@@ -85,7 +89,7 @@ public class TLLCDVideoThread
 		Type = 0;
 		SensorSetting = null;
 		Images.Clear();
-		disposeWebBrowser();
+		SensorRenderer = null;
 		GC.Collect();
 	}
 
@@ -163,16 +167,17 @@ public class TLLCDVideoThread
 		return FanController.GetFanSpeed(Port, Index);
 	}
 
-	// Returns false when Reset() ran while the browser was starting: a newer setting owns the thread by then.
-	internal async Task<bool> SetSensor(TLLCDSensorSetting setting, TLFanController fanController)
+	// Returns false when Reset() ran meanwhile from the stream loop: a newer setting owns the thread by then.
+	internal bool SetSensor(TLLCDSensorSetting setting, TLFanController fanController)
 	{
 		Guid guid = Guid;
 		Type = 1;
 		SensorSetting = setting;
 		FanController = fanController;
-		await initWebBrowser();
-		await setupScreenConfigJson();
-		await SensorValueUpdater();
+		SensorScreenRenderer renderer = SensorRenderer ?? new SensorScreenRenderer();
+		SensorRenderer = renderer;
+		renderer.Configure(setting);
+		SensorValueUpdater();
 		if (guid != Guid)
 		{
 			return false;
@@ -183,169 +188,79 @@ public class TLLCDVideoThread
 		return true;
 	}
 
-	// A renderer that failed to start, or whose Chromium died later, is dropped instead of being kept forever (the
-	// LCD would never get another frame); SensorValueUpdater retries with a growing delay.
-	private async Task initWebBrowser()
+	public void SensorValueUpdater()
 	{
-		await browserLock.WaitAsync();
-		try
+		TLLCDSensorSetting setting = SensorSetting;
+		if (setting == null)
 		{
-			SensorScreenRenderer renderer = ScreenWebBrowser;
-			if (renderer != null && !renderer.IsBroken)
+			return;
+		}
+		(string Type, int Value, string Label, string Unit, int Progress)? sensor = setting.Type switch
+		{
+			TLLCDSensorType.CPUTemp => ("CPU", SystemInformation.Resource.CPUTemperature, "TEMP", "°C", SystemInformation.Resource.CPUTemperature),
+			TLLCDSensorType.GPUTemp => ("GPU", SystemInformation.Resource.GPUTemperature, "TEMP", "°C", SystemInformation.Resource.GPUTemperature),
+			TLLCDSensorType.CPULoad => ("CPU", SystemInformation.Resource.CPULoad, "LOAD", "%", SystemInformation.Resource.CPULoad),
+			TLLCDSensorType.GPULoad => ("GPU", SystemInformation.Resource.GPULoad, "LOAD", "%", SystemInformation.Resource.GPULoad),
+			TLLCDSensorType.FanRPM => ("FAN", GetFanRPM(), "RPM", "RPM", GetFanRPM() * 100 / 1600),
+			// Temperature in the middle, while the ring (Progress) and the Label below it show the load.
+			TLLCDSensorType.CPUTempLoad => ("CPU", SystemInformation.Resource.CPUTemperature, $"Load: {SystemInformation.Resource.CPULoad}%", "°C", SystemInformation.Resource.CPULoad),
+			_ => null,
+		};
+		if (!sensor.HasValue)
+		{
+			return;
+		}
+		Volatile.Write(ref targetProgress, sensor.Value.Progress);
+		SensorScreenRenderer renderer = SensorRenderer;
+		if (renderer == null)
+		{
+			return;
+		}
+		// Progress is the eased value, not the new reading, so a new renderer starts where the ring was.
+		renderer.SetReading(new SensorReading(sensor.Value.Type, sensor.Value.Value, sensor.Value.Label, sensor.Value.Unit, Volatile.Read(ref shownProgress)));
+		startProgressAnimation();
+	}
+
+	// Readings change every 2 s; easing Progress at the stream rate turns each change into a sweep instead of a jump.
+	private void startProgressAnimation()
+	{
+		if (Interlocked.CompareExchange(ref animatingProgress, 1, 0) == 0)
+		{
+			_ = Task.Run(animateProgress);
+		}
+	}
+
+	private async Task animateProgress()
+	{
+		while (true)
+		{
+			while (true)
+			{
+				double target = Volatile.Read(ref targetProgress);
+				double shown = Volatile.Read(ref shownProgress);
+				shown = (Math.Abs(target - shown) < 0.1) ? target : (shown + (target - shown) * ProgressEasing);
+				Volatile.Write(ref shownProgress, shown);
+				SensorRenderer?.SetProgress(shown);
+				if (shown == target)
+				{
+					break;
+				}
+				await Task.Delay(1000 / Constants.StreamFramesPerSecond);
+			}
+			Volatile.Write(ref animatingProgress, 0);
+			// A reading that arrived after the loop settled but before the flag cleared would otherwise be dropped.
+			if (Volatile.Read(ref targetProgress) == Volatile.Read(ref shownProgress) || Interlocked.CompareExchange(ref animatingProgress, 1, 0) != 0)
 			{
 				return;
 			}
-			if (renderer != null)
-			{
-				EventLogHelper.Warn("LCD sensor screen browser stopped; restarting it.");
-				ScreenWebBrowser = null;
-				await renderer.DisposeAsync();
-			}
-			renderer = new SensorScreenRenderer();
-			ScreenWebBrowser = renderer;
-			try
-			{
-				await renderer.InitAsync();
-				browserRetryDelay = TimeSpan.FromSeconds(10);
-			}
-			catch (Exception ex)
-			{
-				EventLogHelper.Error($"Init web browser failed. {ex.Message} Retrying in {browserRetryDelay.TotalSeconds:0} s.");
-				if (ScreenWebBrowser == renderer)
-				{
-					ScreenWebBrowser = null;
-				}
-				await renderer.DisposeAsync();
-				nextBrowserRetry = DateTime.UtcNow + browserRetryDelay;
-				browserRetryDelay = TimeSpan.FromSeconds(Math.Min(browserRetryDelay.TotalSeconds * 2.0, 600.0));
-			}
-		}
-		finally
-		{
-			browserLock.Release();
 		}
 	}
 
-	private async Task setupScreenConfigJson()
+	public byte[] WriteSensorFrame()
 	{
 		try
 		{
-			if (SensorSetting != null)
-			{
-				string effect = SensorSetting.Style switch
-				{
-					0 => "RingOne", 
-					1 => "RingTwo", 
-					2 => "RingThree", 
-					3 => "RingFour", 
-					4 => "RingFive", 
-					_ => "RingOne", 
-				};
-				_ = string.Empty;
-				string text = ((SensorSetting.Style != 3 && SensorSetting.Style != 4) ? JsonSerializer.Serialize(new
-				{
-					Effect = effect,
-					BackgroundColor = SensorSetting.BackgroundColor1,
-					TextColors = new int[3][] { SensorSetting.TextColor1, SensorSetting.TextColor2, SensorSetting.TextColor3 },
-					Sensor = SensorSetting.Type.ToString()
-				}) : JsonSerializer.Serialize(new
-				{
-					Effect = effect,
-					BackgroundColor1 = SensorSetting.BackgroundColor1,
-					BackgroundColor2 = SensorSetting.BackgroundColor2,
-					TextColors = new int[3][] { SensorSetting.TextColor1, SensorSetting.TextColor2, SensorSetting.TextColor3 },
-					Sensor = SensorSetting.Type.ToString()
-				}));
-				await ScreenWebBrowser.CallAsync("setConfigs", text);
-			}
-		}
-		catch
-		{
-		}
-	}
-
-	public async Task SensorValueUpdater()
-	{
-		if (SensorSetting == null)
-		{
-			return;
-		}
-		if (Enabled && Type == 1 && (ScreenWebBrowser == null || ScreenWebBrowser.IsBroken) && DateTime.UtcNow >= nextBrowserRetry)
-		{
-			await initWebBrowser();
-			await setupScreenConfigJson();
-		}
-		object obj = SensorSetting.Type switch
-		{
-			TLLCDSensorType.CPUTemp => (object)new
-			{
-				Type = "CPU",
-				Value = SystemInformation.Resource.CPUTemperature,
-				Label = "TEMP",
-				Unit = "°C",
-				Progress = SystemInformation.Resource.CPUTemperature
-			}, 
-			TLLCDSensorType.GPUTemp => new
-			{
-				Type = "GPU",
-				Value = SystemInformation.Resource.GPUTemperature,
-				Label = "TEMP",
-				Unit = "°C",
-				Progress = SystemInformation.Resource.GPUTemperature
-			}, 
-			TLLCDSensorType.CPULoad => new
-			{
-				Type = "CPU",
-				Value = SystemInformation.Resource.CPULoad,
-				Label = "LOAD",
-				Unit = "%",
-				Progress = SystemInformation.Resource.CPULoad
-			}, 
-			TLLCDSensorType.GPULoad => new
-			{
-				Type = "GPU",
-				Value = SystemInformation.Resource.GPULoad,
-				Label = "LOAD",
-				Unit = "%",
-				Progress = SystemInformation.Resource.GPULoad
-			}, 
-			TLLCDSensorType.FanRPM => new
-			{
-				Type = "FAN",
-				Value = GetFanRPM(),
-				Label = "RPM",
-				Unit = "RPM",
-				Progress = GetFanRPM() * 100 / 1600
-			}, 
-			_ => null, 
-		};
-		if (obj == null)
-		{
-			return;
-		}
-		string text = JsonSerializer.Serialize(obj);
-		if (ScreenWebBrowser == null)
-		{
-			return;
-		}
-		try
-		{
-			await ScreenWebBrowser.CallAsync("setSensorValue", text);
-		}
-		catch (Exception)
-		{
-		}
-	}
-
-	public byte[] WriteBrowserScreenshot()
-	{
-		try
-		{
-			if (ScreenWebBrowser == null || !ScreenWebBrowser.IsReady)
-			{
-				return null;
-			}
-			byte[] latestFrame = ScreenWebBrowser.LatestFrame;
+			byte[] latestFrame = SensorRenderer?.LatestFrame;
 			if (latestFrame == null)
 			{
 				return null;
@@ -357,21 +272,5 @@ public class TLLCDVideoThread
 		{
 		}
 		return null;
-	}
-
-	private void disposeWebBrowser()
-	{
-		try
-		{
-			SensorScreenRenderer screenWebBrowser = ScreenWebBrowser;
-			ScreenWebBrowser = null;
-			if (screenWebBrowser != null)
-			{
-				_ = screenWebBrowser.DisposeAsync().AsTask();
-			}
-		}
-		catch
-		{
-		}
 	}
 }

@@ -484,8 +484,8 @@ internal class TLLCDController : IController
 		return list;
 	}
 
-	// Settings requests arrive back to back (update, then rotate) and each runs ExecuteSetting. Unserialised, the
-	// second call Reset() the thread while the first was still starting Chromium and both renderers ended up dead.
+	// Settings requests arrive back to back (update, then rotate) and each runs ExecuteSetting; serialising them keeps
+	// one call from Reset()ting the thread while the other is still setting up its sensor screen.
 	public async void SetSensorStreaming(int port, int index, TLLCDSensorSetting setting)
 	{
 		await sensorLock.WaitAsync();
@@ -501,11 +501,11 @@ internal class TLLCDController : IController
 			{
 				if (thread.Enabled && thread.Type == 1)
 				{
-					await thread.SetSensor(setting, FanController);
+					thread.SetSensor(setting, FanController);
 					return;
 				}
 				thread.Reset();
-				if (await thread.SetSensor(setting, FanController) && VideoThreads.Contains(thread))
+				if (thread.SetSensor(setting, FanController) && VideoThreads.Contains(thread))
 				{
 					SetVideoThread(thread);
 				}
@@ -868,7 +868,7 @@ internal class TLLCDController : IController
 						{
 							if (thread.Type == 1)
 							{
-								image = thread.WriteBrowserScreenshot();
+								image = thread.WriteSensorFrame();
 							}
 							if (thread.Type == 0)
 							{

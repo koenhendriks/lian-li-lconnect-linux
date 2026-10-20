@@ -58,7 +58,7 @@ sudo systemctl enable --now lconnectd
 lconnect-ui
 ```
 
-Optional packages: `chromium` (LCD sensor gauges), `nvidia-utils` (NVIDIA GPU temperature and load).
+Optional package: `nvidia-utils` (NVIDIA GPU temperature and load).
 
 Building from a clone uses its last **commit**, not uncommitted changes. Package upgrades restart `lconnectd`
 themselves; restart the GUI as well (quit it from the tray).
@@ -91,8 +91,8 @@ changing anything there, or it writes back what it showed.
 
 The TL LCD is a 400×400 screen that only accepts JPEG frames over USB HID (report 2, 512-byte packets). Everything
 it shows is turned into JPEGs on the PC: images are sent once, videos and animations are decoded by ffmpeg and
-streamed, and the sensor gauges are Lian Li's web page rendered in headless Chromium and screenshotted. If
-`lconnectd` stops, the screen keeps its last frame (or the boot image stored in the fan).
+streamed, and the sensor gauges are drawn with SkiaSharp the way Lian Li's web page draws them, using the page's
+fonts, masks and artwork from the imported assets. If `lconnectd` stops, the screen keeps its last frame (or the boot image stored in the fan).
 
 The daemon streams at 25 fps like Windows. Measured on a TL LCD (firmware V1.01.06), the fan completes at most one
 frame per ~29.5 ms, about **34 fps**, whatever the frame size or the requested rate. To stream at 30 fps instead, add
@@ -113,7 +113,7 @@ Imported videos keep their own frame rate (up to 60) and are resampled to the st
 | Device identity = Windows HID path | Stable id from PCI host + USB port chain, e.g. `usb-0000:0a:00.0-8.2.3.3:1.2#0416:7372` (survives reboots as long as cables stay on the same headers) |
 | WMI device watcher | Polling `hid_enumerate` once per second |
 | CPUID SDK / GPU-Z sensors | hwmon `k10temp` Tctl (AMD) / `coretemp`, `/proc/stat`, NVML (NVIDIA), amdgpu hwmon |
-| CefSharp off-screen browser for sensor gauges | Headless system Chromium via DevTools (PuppeteerSharp), same web bundle |
+| CefSharp off-screen browser for sensor gauges | Drawn natively with SkiaSharp after the same web bundle, redrawn only when a value changes |
 | FFmpeg.AutoGen (bundled ffmpeg 6 DLLs) | `ffmpeg`/`ffprobe` command line |
 | Windows service + watchdog, encrypted localhost HTTP | systemd service, same JSON requests over `/run/lconnect/lconnect.sock` |
 | WPF UI | Avalonia UI with a StatusNotifierItem tray icon (works with Omarchy, KDE, waybar and other SNI hosts) |
@@ -136,7 +136,7 @@ Imported videos keep their own frame rate (up to 60) and are resampled to the st
 - **Device ids look like `hid-hidraw17#0416:7372`**: the sysfs location could not be read, and settings will not
   survive a reboot. Builds before the stable-id fix did this; on the first start of a fixed build the daemon adopts
   the newest of those settings (`journalctl -u lconnectd | grep Adopted`).
-- **LCD shows the default screen instead of a gauge**: install `chromium` and import the assets.
+- **LCD gauge without its ticks, segments or needle**: import the assets; the gauges draw their artwork from them.
 - **LCD wrong port mapping**: the LCD fan reports its own port/index; `lconnectctl probe` (with lconnectd stopped)
   shows what the firmware says.
 - **Fan curve uses 0 °C**: no CPU sensor found; `journalctl -u lconnectd | grep "CPU temperature source"`. On AMD the
@@ -170,8 +170,8 @@ tools/systemd-integration-test.sh "<L-Connect 3 install dir>"  # same, as a hard
 - `LCONNECT_LCD_FPS` (default 25) sets the LCD stream rate; `LCONNECT_LCD_STATS=1` logs the achieved rate and HID
   write times every 5 s.
 - `LCONNECT_FAKE_CPU_TEMP` / `LCONNECT_FAKE_GPU_TEMP` (or `<data>/sensor-override.json`) override sensor readings.
-- `lconnectd --render-sensor out.jpg` renders one LCD gauge to a file (checks Chromium and the assets).
-- `LCONNECT_DATA_DIR`, `LCONNECT_SOCKET`, `LCONNECT_HIDAPI`, `LCONNECT_CHROMIUM`, `LCONNECT_FFMPEG_DIR` override paths.
+- `lconnectd --render-sensor out` renders every LCD gauge style with a few sample readings to `out.style<N>.<case>.jpg`.
+- `LCONNECT_DATA_DIR`, `LCONNECT_SOCKET`, `LCONNECT_HIDAPI`, `LCONNECT_FFMPEG_DIR` override paths.
 - On Windows the port can drive the real hardware for testing (stop the L-Connect services first) using L-Connect's
   own `hidapi.dll`: `LCONNECT_HIDAPI="C:\Program Files\Lian-Li\L-Connect 3\hidapi.dll"`.
 - Regenerate the golden data after changing scenarios: build `tools/GoldenHarness` (Windows, needs an L-Connect 3

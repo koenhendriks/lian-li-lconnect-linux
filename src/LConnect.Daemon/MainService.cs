@@ -82,7 +82,6 @@ internal class MainService
 				removeConnectedController(item);
 			}
 		}
-		SensorScreenRenderer.ShutdownAsync().Wait(5000);
 		SystemInformation.Shutdown();
 		disposeCore();
 		EventLogHelper.Info("Service stopped", EventIDs.ServiceStop);

@@ -15,8 +15,7 @@ url="https://github.com/koenhendriks/lian-li-lconnect-linux"
 license=('LicenseRef-L-Connect-derived')
 depends=('dotnet-runtime-10.0' 'aspnet-runtime-10.0' 'hidapi' 'ffmpeg' 'systemd' 'fontconfig' 'libx11' 'libice' 'libsm')
 makedepends=('dotnet-sdk-10.0' 'aspnet-targeting-pack-10.0' 'git')
-optdepends=('chromium: render LCD sensor screens (CPU/GPU temperature and load gauges)'
-            'nvidia-utils: NVIDIA GPU temperature/load for fan curves and sensor screens')
+optdepends=('nvidia-utils: NVIDIA GPU temperature/load for fan curves and sensor screens')
 options=('!strip' '!debug')
 install=lconnect.install
 _src=lconnect-linux

@@ -6,5 +6,6 @@ public enum TLLCDSensorType
 	GPUTemp,
 	CPULoad,
 	GPULoad,
-	FanRPM
+	FanRPM,
+	CPUTempLoad
 }

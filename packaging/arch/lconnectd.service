@@ -24,8 +24,8 @@ Restart=on-failure
 RestartSec=2
 TimeoutStopSec=20
 
-# Hardening. The daemon needs /dev/hidraw* (udev gives the lconnect group access), /sys (hwmon sensors),
-# NVML (/dev/nvidia*) and may start a headless Chromium for LCD sensor screens (run with --no-sandbox).
+# Hardening. The daemon needs /dev/hidraw* (udev gives the lconnect group access), /sys (hwmon sensors) and
+# NVML (/dev/nvidia*).
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes

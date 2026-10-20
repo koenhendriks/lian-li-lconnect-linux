@@ -191,6 +191,7 @@ public partial class LcdSlot : ObservableObject
 				TLLCDSensorType.CPULoad => ("CPU LOAD", latest.HasValue ? $"{latest.Value.CPULoad}%" : "--"),
 				TLLCDSensorType.GPULoad => ("GPU LOAD", latest.HasValue ? $"{latest.Value.GPULoad}%" : "--"),
 				TLLCDSensorType.FanRPM => ("FAN", $"{FanRpm}"),
+				TLLCDSensorType.CPUTempLoad => (latest.HasValue ? $"CPU · Load: {latest.Value.CPULoad}%" : "CPU", latest.HasValue ? $"{latest.Value.CPUTemperature}°C" : "--"),
 				_ => (string.Empty, string.Empty),
 			};
 			SensorLabel = tuple.Item1;

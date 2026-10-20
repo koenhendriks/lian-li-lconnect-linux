@@ -29,9 +29,8 @@ internal static class Program
 		int num = Array.IndexOf(args, "--render-sensor");
 		if (num >= 0)
 		{
-			// Diagnostic: render one LCD sensor screen to a JPEG without touching any device.
 			EventLogHelper.Verbose = true;
-			return await Products.TLLCD.SensorScreenRenderer.RenderTestAsync((num + 1 < args.Length) ? args[num + 1] : "sensor-test.jpg");
+			return Products.TLLCD.SensorScreenRenderTest.Run((num + 1 < args.Length) ? args[num + 1] : "sensor-test");
 		}
 		string socketPath = LConnectApp.Path.ServiceSocketPath;
 		Directory.CreateDirectory(LConnectApp.Path.DataRoot);
