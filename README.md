@@ -7,8 +7,8 @@
 
 An unofficial Linux port of **Lian Li L-Connect 3 v2.0.11**. It drives UNI FAN **TL** fans (including the
 **TL LCD** screens) and the **UNI HUB SL Infinity**: RGB effects, fan speed curves and the LCD screens (images, GIFs,
-videos, built-in animations and the CPU/GPU sensor gauges). The SL / AL / SL V2 / AL V2 hubs are ported too but have
-not been tested on real hardware.
+videos, built-in animations and the sensor gauges for CPU/GPU temperature and load, fan RPM and a combined CPU
+temperature + load screen). The SL / AL / SL V2 / AL V2 hubs are ported too but have not been tested on real hardware.
 
 It is a background service (`lconnectd`), a desktop GUI with a tray icon (`lconnect-ui`) and a command line tool
 (`lconnectctl`).
@@ -21,8 +21,8 @@ It is a background service (`lconnectd`), a desktop GUI with a tray icon (`lconn
 
 > **Not affiliated with Lian Li.** This port was made by decompiling the Windows application to make the
 > hardware usable on Linux, and most of the code under `src/` is derived from it. No license is granted for that
-> code. Lian Li's artwork (LCD animations, the sensor-screen web bundle, the logo) is not in this repository: you copy
-> it from your own L-Connect 3 installation with `lconnectctl assets import`. "Lian Li", "L-Connect" and "UNI FAN"
+> code. Lian Li's artwork (LCD animations, the sensor-screen web bundle whose fonts and artwork the gauges use, the
+> logo) is not in this repository: you copy it from your own L-Connect 3 installation with `lconnectctl assets import`. "Lian Li", "L-Connect" and "UNI FAN"
 > are trademarks of Lian Li Industrial Co., Ltd.
 
 ## Install
@@ -79,6 +79,7 @@ lconnectctl tl modes                                 # TL lighting modes/directi
 lconnectctl tl lighting --port 2 --mode Meteor --speed 50 --brightness 100 --colors ff0080,00ff00
 lconnectctl tl fan --port 2 --mode Quiet --source GPU
 lconnectctl lcd show --port 2 --sensor GPUTemp --style 0 --bg 0000ff
+lconnectctl lcd show --port 2 --sensor CPUTempLoad --style 0   # CPU temperature, load below it and on the ring
 lconnectctl lcd show --port 2 --animation <name>     # names from: lconnectctl lcd animations
 lconnectctl lcd show --port 2 --image ~/Pictures/x.png
 lconnectctl lcd show --port 2 --video ~/Videos/x.mp4
@@ -92,7 +93,9 @@ changing anything there, or it writes back what it showed.
 The TL LCD is a 400×400 screen that only accepts JPEG frames over USB HID (report 2, 512-byte packets). Everything
 it shows is turned into JPEGs on the PC: images are sent once, videos and animations are decoded by ffmpeg and
 streamed, and the sensor gauges are drawn with SkiaSharp the way Lian Li's web page draws them, using the page's
-fonts, masks and artwork from the imported assets. If `lconnectd` stops, the screen keeps its last frame (or the boot image stored in the fan).
+fonts, masks and artwork from the imported assets (no browser involved). A gauge is only redrawn when its value
+changes; between readings, which arrive every 2 s, the ring eases to the new value instead of jumping. If `lconnectd`
+stops, the screen keeps its last frame (or the boot image stored in the fan).
 
 The daemon streams at 25 fps like Windows. Measured on a TL LCD (firmware V1.01.06), the fan completes at most one
 frame per ~29.5 ms, about **34 fps**, whatever the frame size or the requested rate. To stream at 30 fps instead, add
@@ -114,6 +117,7 @@ Imported videos keep their own frame rate (up to 60) and are resampled to the st
 | WMI device watcher | Polling `hid_enumerate` once per second |
 | CPUID SDK / GPU-Z sensors | hwmon `k10temp` Tctl (AMD) / `coretemp`, `/proc/stat`, NVML (NVIDIA), amdgpu hwmon |
 | CefSharp off-screen browser for sensor gauges | Drawn natively with SkiaSharp after the same web bundle, redrawn only when a value changes |
+| Gauge ring jumps to each new reading | Ring eases between readings; extra CPU Temp + Load screen |
 | FFmpeg.AutoGen (bundled ffmpeg 6 DLLs) | `ffmpeg`/`ffprobe` command line |
 | Windows service + watchdog, encrypted localhost HTTP | systemd service, same JSON requests over `/run/lconnect/lconnect.sock` |
 | WPF UI | Avalonia UI with a StatusNotifierItem tray icon (works with Omarchy, KDE, waybar and other SNI hosts) |
