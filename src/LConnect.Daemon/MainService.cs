@@ -385,9 +385,10 @@ internal class MainService
 		}
 		try
 		{
-			if (SettingsImporter.AdoptLegacy(devicePath, hidDevice.VendorID, hidDevice.ProductID))
+			string previousId = SettingsImporter.AdoptPrevious(devicePath, hidDevice.VendorID, hidDevice.ProductID);
+			if (previousId != null)
 			{
-				EventLogHelper.Info($"Adopted settings saved under an earlier hidraw-based id for '{devicePath}' ({type})");
+				EventLogHelper.Info($"Adopted settings saved under the earlier id '{previousId}' for '{devicePath}' ({type})");
 			}
 			if (SettingsImporter.AdoptPending(devicePath, hidDevice.VendorID, hidDevice.ProductID, hidDevice.InterfaceNumber))
 			{

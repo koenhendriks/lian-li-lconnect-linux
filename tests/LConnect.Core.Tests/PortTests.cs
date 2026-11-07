@@ -108,43 +108,66 @@ public class PortTests
 		Assert.Equal(0, hidReportDescriptor.GetReportLength(HidReportDescriptor.ReportKind.Output, 224));
 	}
 
-	[Fact]
-	public void AdoptLegacyTakesNewestHidrawSettings()
+	private static string lcdSettingsDirectory => Path.Combine(LConnectCore.LConnectApp.Path.DeviceSettingDirectory, DeviceSettingManager.GetMD5String(SettingsImporter.LcdFolderName));
+
+	// Writes a device setting, an LCD setting and a GUI profile for a device id, all carrying <marker>.
+	private static void writeSettings(string deviceId, string marker, DateTime time)
 	{
 		// Points LConnectApp.Path at the per-run temp directory instead of /var/lib/lconnect.
 		System.Runtime.CompilerServices.RuntimeHelpers.RunClassConstructor(typeof(GoldenTests).TypeHandle);
-		string lcdDirectory = Path.Combine(LConnectCore.LConnectApp.Path.DeviceSettingDirectory, DeviceSettingManager.GetMD5String(SettingsImporter.LcdFolderName));
-		void writeLegacy(string legacyId, string marker, DateTime time)
+		string key = DeviceSettingManager.GetDeviceKey(deviceId);
+		string setting = Path.Combine(LConnectCore.LConnectApp.Path.DeviceSettingDirectory, key, "lighting.0");
+		SettingsImporter.Gzip(setting, System.Text.Encoding.UTF8.GetBytes($"{{\"DevicePath\":\"{deviceId}\",\"Type\":\"{marker}\"}}"));
+		string lcd = Path.Combine(lcdSettingsDirectory, key + ".LCD");
+		SettingsImporter.Gzip(lcd, System.Text.Encoding.UTF8.GetBytes(marker));
+		string profile = Path.Combine(LConnectCore.LConnectApp.Path.ControllerProfileDirectory, key);
+		Directory.CreateDirectory(Path.GetDirectoryName(profile));
+		File.WriteAllText(profile, marker);
+		foreach (string file in new[] { setting, lcd, profile })
 		{
-			string key = DeviceSettingManager.GetDeviceKey(legacyId);
-			string setting = Path.Combine(LConnectCore.LConnectApp.Path.DeviceSettingDirectory, key, "lighting.0");
-			SettingsImporter.Gzip(setting, System.Text.Encoding.UTF8.GetBytes($"{{\"DevicePath\":\"{legacyId}\",\"Type\":\"{marker}\"}}"));
-			string lcd = Path.Combine(lcdDirectory, key + ".LCD");
-			SettingsImporter.Gzip(lcd, System.Text.Encoding.UTF8.GetBytes(marker));
-			string profile = Path.Combine(LConnectCore.LConnectApp.Path.ControllerProfileDirectory, key);
-			Directory.CreateDirectory(Path.GetDirectoryName(profile));
-			File.WriteAllText(profile, marker);
-			foreach (string file in new[] { setting, lcd, profile })
-			{
-				File.SetLastWriteTimeUtc(file, time);
-			}
+			File.SetLastWriteTimeUtc(file, time);
 		}
-		writeLegacy("hid-hidraw3#beef:0001", "old", new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
-		writeLegacy("hid-hidraw9#beef:0001", "new", new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc));
-		writeLegacy("hid-hidraw4#beef:0002", "other", new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc));
+	}
+
+	private static void assertAdopted(string deviceId, string marker)
+	{
+		string key = DeviceSettingManager.GetDeviceKey(deviceId);
+		string adopted = gunzip(Path.Combine(LConnectCore.LConnectApp.Path.DeviceSettingDirectory, key, "lighting.0"));
+		Assert.Contains("\"DevicePath\":\"" + deviceId + "\"", adopted);
+		Assert.Contains("\"Type\":\"" + marker + "\"", adopted);
+		Assert.Equal(marker, gunzip(Path.Combine(lcdSettingsDirectory, key + ".LCD")));
+		Assert.Equal(marker, File.ReadAllText(Path.Combine(LConnectCore.LConnectApp.Path.ControllerProfileDirectory, key)));
+	}
+
+	[Fact]
+	public void AdoptPreviousTakesNewestHidrawSettings()
+	{
+		writeSettings("hid-hidraw3#beef:0001", "old", new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+		writeSettings("hid-hidraw9#beef:0001", "new", new DateTime(2026, 2, 1, 0, 0, 0, DateTimeKind.Utc));
+		writeSettings("hid-hidraw4#beef:0002", "other", new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc));
 		string stableId = "usb-0000:0e:00.0-2.3.3:1.2#beef:0001";
-		string newKey = DeviceSettingManager.GetDeviceKey(stableId);
 
-		Assert.True(SettingsImporter.AdoptLegacy(stableId, 0xbeef, 0x0001));
+		Assert.Equal("hid-hidraw9#beef:0001", SettingsImporter.AdoptPrevious(stableId, 0xbeef, 0x0001));
 
-		string adopted = gunzip(Path.Combine(LConnectCore.LConnectApp.Path.DeviceSettingDirectory, newKey, "lighting.0"));
-		Assert.Contains("\"DevicePath\":\"" + stableId + "\"", adopted);
-		Assert.Contains("\"Type\":\"new\"", adopted);
-		Assert.Equal("new", gunzip(Path.Combine(lcdDirectory, newKey + ".LCD")));
-		Assert.Equal("new", File.ReadAllText(Path.Combine(LConnectCore.LConnectApp.Path.ControllerProfileDirectory, newKey)));
+		assertAdopted(stableId, "new");
 		// Never overwrites settings the stable id already has, and never adopts for an unresolved id.
-		Assert.False(SettingsImporter.AdoptLegacy(stableId, 0xbeef, 0x0001));
-		Assert.False(SettingsImporter.AdoptLegacy("hid-hidraw5#beef:0001", 0xbeef, 0x0001));
+		Assert.Null(SettingsImporter.AdoptPrevious(stableId, 0xbeef, 0x0001));
+		Assert.Null(SettingsImporter.AdoptPrevious("hid-hidraw5#beef:0001", 0xbeef, 0x0001));
+	}
+
+	// Adding or removing a PCIe card can renumber the USB controller's PCI bus; the hub on the same port keeps its
+	// settings, but a different port with the same VID:PID does not hand over its (newer) ones.
+	[Fact]
+	public void AdoptPreviousFollowsPciAddressChange()
+	{
+		writeSettings("usb-0000:0a:00.0-8.2.2:1.1#beef:0003", "same port", new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+		writeSettings("usb-0000:0a:00.0-8.2.4:1.1#beef:0003", "other port", new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc));
+		writeSettings("usb-0000:0a:00.0-8.2.2:1.0#beef:0003", "other interface", new DateTime(2026, 3, 1, 0, 0, 0, DateTimeKind.Utc));
+		string moved = "usb-0000:09:00.0-8.2.2:1.1#beef:0003";
+
+		Assert.Equal("usb-0000:0a:00.0-8.2.2:1.1#beef:0003", SettingsImporter.AdoptPrevious(moved, 0xbeef, 0x0003));
+
+		assertAdopted(moved, "same port");
 	}
 
 	[Fact]

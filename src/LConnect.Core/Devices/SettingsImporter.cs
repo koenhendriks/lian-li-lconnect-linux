@@ -335,27 +335,46 @@ public static class SettingsImporter
 		return result;
 	}
 
-	// Earlier builds failed to resolve the sysfs location and keyed devices as "hid-hidrawN#vid:pid", so every boot
-	// that renumbered hidraw nodes started from empty settings. When a device with a real stable id has no settings
-	// yet, copy the most recently written of those legacy sets with the same VID:PID. The old files are left alone.
-	public static bool AdoptLegacy(string devicePath, int vendorId, int productId)
+	// The PCI part of a stable id ("usb-0000:09:00.0-8.2.2:1.1#0cf2:a102") changes when PCIe devices are added or
+	// removed and the USB controller's bus number shifts; the port chain, interface and VID:PID do not.
+	private static readonly Regex StableIdPort = new Regex("^usb-[^-]+-(?<port>[\\d.]+:\\d+\\.\\d+#[0-9a-f]{4}:[0-9a-f]{4})$", RegexOptions.IgnoreCase | RegexOptions.Compiled);
+
+	// When a device with a stable id has no settings yet, copies the most recently written settings it had under an
+	// earlier id: "hid-hidrawN#vid:pid" from builds that could not read sysfs (renumbered every boot), or the same
+	// port chain behind a different PCI address. The old files are left alone. Returns the id adopted from, or null.
+	public static string AdoptPrevious(string devicePath, int vendorId, int productId)
 	{
 		if (string.IsNullOrEmpty(devicePath) || devicePath.StartsWith("hid-", StringComparison.Ordinal))
 		{
-			return false;
+			return null;
 		}
 		string lcdDirectory = Path.Combine(LConnectApp.Path.DeviceSettingDirectory, DeviceSettingManager.GetMD5String(LcdFolderName));
 		(string Device, string Lcd, string Profile) paths(string key) => (Path.Combine(LConnectApp.Path.DeviceSettingDirectory, key), Path.Combine(lcdDirectory, key + ".LCD"), Path.Combine(LConnectApp.Path.ControllerProfileDirectory, key));
 		var target = paths(DeviceSettingManager.GetDeviceKey(devicePath));
 		if ((Directory.Exists(target.Device) && Directory.EnumerateFiles(target.Device, "*.0").Any()) || File.Exists(target.Lcd) || File.Exists(target.Profile))
 		{
-			return false;
+			return null;
+		}
+		List<(string Key, string Id)> candidates = Enumerable.Range(0, 256).Select((int i) => $"hid-hidraw{i}#{vendorId:x4}:{productId:x4}").Select((string id) => (DeviceSettingManager.GetDeviceKey(id), id)).ToList();
+		Match match = StableIdPort.Match(devicePath);
+		if (match.Success && Directory.Exists(LConnectApp.Path.DeviceSettingDirectory))
+		{
+			foreach (string directory in Directory.EnumerateDirectories(LConnectApp.Path.DeviceSettingDirectory))
+			{
+				string recorded = recordedDevicePath(directory);
+				Match other = StableIdPort.Match(recorded ?? string.Empty);
+				if (other.Success && !string.Equals(recorded, devicePath, StringComparison.OrdinalIgnoreCase) && string.Equals(other.Groups["port"].Value, match.Groups["port"].Value, StringComparison.OrdinalIgnoreCase))
+				{
+					candidates.Add((Path.GetFileName(directory), recorded));
+				}
+			}
 		}
 		(string Device, string Lcd, string Profile) source = default;
+		string sourceId = null;
 		DateTime dateTime = DateTime.MinValue;
-		for (int i = 0; i < 256; i++)
+		foreach (var (key, id) in candidates)
 		{
-			var candidate = paths(DeviceSettingManager.GetDeviceKey($"hid-hidraw{i}#{vendorId:x4}:{productId:x4}"));
+			var candidate = paths(key);
 			IEnumerable<string> files = (Directory.Exists(candidate.Device) ? Directory.EnumerateFiles(candidate.Device, "*.0") : Enumerable.Empty<string>()).Append(candidate.Lcd).Append(candidate.Profile).Where(File.Exists);
 			foreach (string file in files)
 			{
@@ -364,12 +383,13 @@ public static class SettingsImporter
 				{
 					dateTime = lastWriteTimeUtc;
 					source = candidate;
+					sourceId = id;
 				}
 			}
 		}
-		if (source.Device == null)
+		if (sourceId == null)
 		{
-			return false;
+			return null;
 		}
 		if (Directory.Exists(source.Device))
 		{
@@ -389,6 +409,19 @@ public static class SettingsImporter
 			Directory.CreateDirectory(Path.GetDirectoryName(target.Profile));
 			FileSystemHelper.CopyShared(source.Profile, target.Profile);
 		}
-		return true;
+		return sourceId;
+	}
+
+	private static string recordedDevicePath(string settingsDirectory)
+	{
+		try
+		{
+			string file = Directory.EnumerateFiles(settingsDirectory, "*.0").FirstOrDefault();
+			return (file == null) ? null : JsonNode.Parse(Gunzip(file))?["DevicePath"]?.GetValue<string>();
+		}
+		catch
+		{
+			return null;
+		}
 	}
 }
