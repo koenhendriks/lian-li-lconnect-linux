@@ -63,10 +63,11 @@ internal sealed class SensorScreenRenderer
 
 	public byte[] LatestFrame => latestFrame;
 
-	internal static bool HasFonts => boldFont.Value.GlyphCount > 0;
+	internal static bool HasFonts => boldFont.Value != null;
 
 	// The fonts ship with the imported tl-sensor bundle; the system Noto Sans is the same family. SkiaSharp's
-	// NoDependencies build has no fontconfig, so a family name alone would not resolve.
+	// NoDependencies build has no fontconfig, so a family name alone would not resolve. Null without either: the
+	// screens then draw no text rather than whatever font happens to be installed.
 	private static SKTypeface loadFont(string name, SKFontStyle style)
 	{
 		string bundle = Path.Combine(AssetDirectory, "assets");
@@ -83,10 +84,13 @@ internal sealed class SensorScreenRenderer
 				return typeface;
 			}
 		}
-		SKTypeface fallback = SKTypeface.FromFamilyName("Noto Sans", style) ?? SKTypeface.Default;
-		if (fallback.GlyphCount == 0)
+		// MatchFamily, unlike FromFamilyName, returns null instead of falling back to the first installed font (on the
+		// CI runner the only one is Noto Color Emoji).
+		SKTypeface fallback = SKFontManager.Default.MatchFamily("Noto Sans", style);
+		if (fallback == null || fallback.GlyphCount == 0)
 		{
 			Helpers.EventLogHelper.Warn(name + " not found; LCD sensor screens show no text. Import the assets or install noto-fonts.");
+			return null;
 		}
 		return fallback;
 	}
@@ -276,7 +280,7 @@ internal sealed class SensorScreenRenderer
 			drawPicture(canvas, range, new SKPoint(Size / 2f, Size / 3f - 10f), new SKSize(Size * 0.908f, range.Size.Height));
 		}
 		// p5 draws loadFont() text as unhinted glyph outlines on the alphabetic baseline.
-		if (reading.HasValue && !string.IsNullOrEmpty(reading.Value.Type))
+		if (HasFonts && reading.HasValue && !string.IsNullOrEmpty(reading.Value.Type))
 		{
 			using SKFont font = new SKFont(boldFont.Value, 30f)
 			{
@@ -476,7 +480,7 @@ internal sealed class SensorScreenRenderer
 	// pixels and floors the half-leading, and hints slightly; doing the same keeps every line within 0.1 px of it.
 	private static void drawLine(SKCanvas canvas, string text, SKTypeface typeface, float size, float top, SKColor color)
 	{
-		if (string.IsNullOrEmpty(text))
+		if (string.IsNullOrEmpty(text) || typeface == null)
 		{
 			return;
 		}
